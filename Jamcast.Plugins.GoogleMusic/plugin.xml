@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<plugin xmlns="http://sdstechnologies.com/jamcast/plugin/manifest/1.0">
+	<name>Google Music</name>
+	<publisherName>Lutz Bürkle, Stuttgart, Germany</publisherName>	
+	<assemblyName>Jamcast.Plugins.GoogleMusic.dll</assemblyName>
+  <files>
+    <file>GoogleMusic.dll</file>
+  </files>
+</plugin>
