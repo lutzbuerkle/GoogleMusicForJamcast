@@ -5,5 +5,6 @@
 	<assemblyName>Jamcast.Plugins.GoogleMusic.dll</assemblyName>
   <files>
     <file>GoogleMusic.dll</file>
+    <file>LICENSE</file>
   </files>
 </plugin>

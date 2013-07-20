@@ -14,6 +14,7 @@ my $zip = Archive::Zip->new();
 $zip->addFile($tgtdir.$file.'.dll',$file.'.dll');
 $zip->addFile($tgtdir.'GoogleMusic.dll','GoogleMusic.dll');
 $zip->addFile($tgtdir.'plugin.xml','plugin.xml');
+$zip->addFile($prjdir.'LICENSE','LICENSE');
 
 my $status = $zip->writeToFileNamed($prjdir.$file.'.jpl');
 exit $status;

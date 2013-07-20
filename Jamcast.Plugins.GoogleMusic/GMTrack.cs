@@ -30,12 +30,14 @@ using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
 using System;
+using System.Text.RegularExpressions;
 
 namespace Jamcast.Plugins.GoogleMusic {
 
     [ObjectRenderer(ServerObjectType.Track)]
     public class GMTrack : ObjectRenderer
     {
+        private static Regex _regex = new Regex(@"^(?<URL>.+)=", RegexOptions.Compiled);
 
         public override ServerObject GetMetadata()
         {
@@ -53,7 +55,13 @@ namespace Jamcast.Plugins.GoogleMusic {
             track.Composers.Add(t.composer);
             if (!String.IsNullOrEmpty(t.albumArtUrl))
             {
-                track.AlbumArt = new ImageResource(new UriLocation(t.albumArtUrl), MediaFormats.JPEG);
+                string albumArtUrl;
+                Match match = _regex.Match(t.albumArtUrl);
+                if (match.Success)
+                    albumArtUrl = match.Groups["URL"].Value;
+                else
+                    albumArtUrl = t.albumArtUrl;
+                track.AlbumArt = new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG);
             }
 
             return track;
