@@ -37,7 +37,8 @@ namespace Jamcast.Plugins.GoogleMusic
 {
     class GoogleMusicAPI
     {
-        private static int MAX_CONN_ATTEMPTS = 10;
+        private static int DELAY_CONN_ATTEMPTS = 10000;
+        private static int MAX_CONN_ATTEMPTS = 12;
 
         private static WebProxy proxy;
         private static GoogleMusicClient GMClient;
@@ -64,7 +65,7 @@ namespace Jamcast.Plugins.GoogleMusic
                 {
                     Log.Info(Plugin.LOG_MODULE, "Checking internet connection", null);
                     if (connected = CheckForInternetConnection()) break;
-                    Thread.Sleep(2000);
+                    Thread.Sleep(DELAY_CONN_ATTEMPTS);
                 }
 
                 if (!connected)
@@ -91,6 +92,8 @@ namespace Jamcast.Plugins.GoogleMusic
             });
         }
 
+        public static bool LoggedIn { get { return GMClient.LoginStatus; } }
+
         public static Playlist Tracklist { get { return tracklist; } }
 
         public static Playlists Playlists { get { return playlists; } }
@@ -112,7 +115,7 @@ namespace Jamcast.Plugins.GoogleMusic
                 using (WebClient client = new WebClient())
                 {
                     client.Proxy = proxy;
-                    using (Stream stream = client.OpenRead("http://www.google.com"))
+                    using (Stream stream = client.OpenRead("http://www.google.com/"))
                         return true;
                 }
             }

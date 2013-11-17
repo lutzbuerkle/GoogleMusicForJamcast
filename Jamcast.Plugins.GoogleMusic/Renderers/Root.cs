@@ -39,13 +39,20 @@ namespace Jamcast.Plugins.GoogleMusic
         public override void GetChildren(int startIndex, int count, out int totalMatches)
         {
 
-            totalMatches = 2;
+            if (GoogleMusicAPI.LoggedIn)
+            {
+                totalMatches = 2;
 
-            if (startIndex == 0)
-                this.CreateChildObject<Music>("My Music");
+                if (startIndex == 0)
+                    this.CreateChildObject<Music>("My Music");
 
-            if (startIndex <= 1)
-                this.CreateChildObject<PlaylistContainer>("Playlists");
+                if (startIndex <= 1)
+                    this.CreateChildObject<PlaylistContainer>("Playlists");
+            }
+            else
+            {
+                totalMatches = 0;
+            }
 
         }
 
