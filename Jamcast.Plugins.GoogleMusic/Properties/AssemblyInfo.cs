@@ -6,11 +6,11 @@ using System.Runtime.InteropServices;
 // Attribute gesteuert. Ändern Sie diese Attributwerte, um die Informationen zu ändern,
 // die mit einer Assembly verknüpft sind.
 [assembly: AssemblyTitle("Jamcast.Plugins.GoogleMusic")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("The Jamcast.Plugins.GoogleMusic plugin adds Google Music browse and playback capabilities to Jamcast, a DLNA media server for Windows.")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("Copyright © 2013, Lutz Bürkle")]
+[assembly: AssemblyCopyright("Copyright © 2014, Lutz Bürkle")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -32,5 +32,5 @@ using System.Runtime.InteropServices;
 // Sie können alle Werte angeben oder die standardmäßigen Build- und Revisionsnummern 
 // übernehmen, indem Sie "*" eingeben:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.0.0.2")]
-[assembly: AssemblyFileVersion("1.0.0.2")]
+[assembly: AssemblyVersion("1.1.0.12")]
+[assembly: AssemblyFileVersion("1.1.0.12")]

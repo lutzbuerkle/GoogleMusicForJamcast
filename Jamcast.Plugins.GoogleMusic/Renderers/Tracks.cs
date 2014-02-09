@@ -46,7 +46,7 @@ namespace Jamcast.Plugins.GoogleMusic {
         public override void GetChildren(int startIndex, int count, out int totalMatches)
         {
 
-            Playlist p = GoogleMusicAPI.Tracklist;
+            Playlist p = GoogleMusicAPI.Instance.Tracklist;
 
             if (p == null)
             {

@@ -64,7 +64,7 @@ namespace Jamcast.Plugins.GoogleMusic
         public bool Startup() {
 
             string login = Configuration.Instance.Login;
-            string passwd = Configuration.Decrypt(Configuration.Instance.Password);
+            string passwd = Configuration.Instance.Password;
 
             if (!Configuration.Instance.IsEnabled)
             {
@@ -74,7 +74,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
             if (String.IsNullOrEmpty(login) || String.IsNullOrEmpty(passwd)) return false;
 
-            GoogleMusicAPI.Login(login, passwd);
+            GoogleMusicAPI.Instance.Login(login, passwd);
 
             return true;
 

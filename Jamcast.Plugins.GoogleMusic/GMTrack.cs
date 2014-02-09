@@ -43,8 +43,11 @@ namespace Jamcast.Plugins.GoogleMusic {
         {
 
             Track t = this.ObjectData as Track;
+            string[] contextData = new string[] { t.id, "NIL" };
 
-            AudioItem track = new AudioItem(new MediaServerLocation(typeof(TrackHandler), new string[] {t.id}), MediaFormats.MP3);
+            if (!String.IsNullOrEmpty(t.previewToken)) contextData[1] = t.previewToken;
+
+            AudioItem track = new AudioItem(new MediaServerLocation(typeof(TrackHandler), contextData), MediaFormats.MP3);
             track.Title = t.title;
             track.Genre = t.genre;
             track.AlbumArtist = t.albumArtist;

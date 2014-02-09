@@ -27,35 +27,45 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 using GoogleMusic;
-using System;
-using System.Threading;
 using Jamcast.Extensibility;
-using System.Net;
+using System;
 using System.IO;
+using System.Net;
+using System.Threading;
 
 namespace Jamcast.Plugins.GoogleMusic
 {
-    class GoogleMusicAPI
+    internal class GoogleMusicAPI
     {
-        private static int DELAY_CONN_ATTEMPTS = 10000;
-        private static int MAX_CONN_ATTEMPTS = 12;
+        private const int DELAY_CONN_ATTEMPTS = 10000;
+        private const int MAX_CONN_ATTEMPTS = 12;
 
-        private static WebProxy proxy;
-        private static GoogleMusicClient GMClient;
-        private static Playlist tracklist;
-        private static Playlists playlists;
+        private static GoogleMusicAPI _instance;
+
+        private GoogleMusicClient _GMClient;
+        private Playlist _tracklist;
+        private Playlists _playlists;
 
         static GoogleMusicAPI()
         {
-            proxy = null;
-            GMClient = new GoogleMusicClient();
-            GMClient.ErrorHandler += ErrorHandler;
-            GMClient.Proxy = proxy;
-            tracklist = new Playlist();
-            playlists = new Playlists();
+            Proxy = null;
+            _instance = new GoogleMusicAPI();
         }
 
-        public static void Login(string login, string passwd)
+        private GoogleMusicAPI()
+        {
+            _GMClient = new GoogleMusicClient();
+            _GMClient.ErrorHandler += ErrorHandler;
+            _GMClient.Proxy = Proxy;
+            _tracklist = new Playlist();
+            _playlists = new Playlists();
+        }
+
+        internal static WebProxy Proxy { get; set; }
+
+        internal static GoogleMusicAPI Instance { get { return _instance; } }
+
+        internal void Login(string login, string passwd)
         {
             ThreadPool.QueueUserWorkItem(y =>
             {
@@ -63,7 +73,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
                 for (int i = 0; i < MAX_CONN_ATTEMPTS; i++)
                 {
-                    Log.Info(Plugin.LOG_MODULE, "Checking internet connection", null);
+                Log.Info(Plugin.LOG_MODULE, "Checking for internet connection", null);
                     if (connected = CheckForInternetConnection()) break;
                     Thread.Sleep(DELAY_CONN_ATTEMPTS);
                 }
@@ -74,15 +84,15 @@ namespace Jamcast.Plugins.GoogleMusic
                 }
                 else
                 {
-                    GMClient.Login(login, passwd);
-                    if (GMClient.LoginStatus)
+                    _GMClient.Login(login, passwd);
+                    if (_GMClient.LoginStatus)
                     {
                         Log.Info(Plugin.LOG_MODULE, "Logged into Google Music", null);
-                        tracklist = GMClient.GetAllTracks();
-                        tracklist.Sort();
-                        Log.Info(Plugin.LOG_MODULE, String.Format("Tracklist containing {0} tracks obtained from Google Music", tracklist.tracks.Count), null);
-                        playlists = (Playlists)GMClient.GetPlaylist();
-                        Log.Info(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", playlists.playlists.Count), null);
+                        _tracklist = _GMClient.GetAllTracks();
+                        _tracklist.Sort();
+                        Log.Info(Plugin.LOG_MODULE, String.Format("Tracklist containing {0} tracks obtained from Google Music", _tracklist.tracks.Count), null);
+                        _playlists = (Playlists)_GMClient.GetPlaylist();
+                        Log.Info(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", _playlists.playlists.Count), null);
                     }
                     else
                     {
@@ -92,29 +102,29 @@ namespace Jamcast.Plugins.GoogleMusic
             });
         }
 
-        public static bool LoggedIn { get { return GMClient.LoginStatus; } }
+        internal bool LoggedIn { get { return _GMClient.LoginStatus; } }
 
-        public static Playlist Tracklist { get { return tracklist; } }
+        internal Playlist Tracklist { get { return _tracklist; } }
 
-        public static Playlists Playlists { get { return playlists; } }
+        internal Playlists Playlists { get { return _playlists; } }
 
-        public static Albumlist Albumlist { get { return new Albumlist(tracklist); } }
+        internal Albumlist Albumlist { get { return new Albumlist(_tracklist); } }
 
-        public static AlbumArtistlist AlbumArtistlist { get { return new AlbumArtistlist(tracklist); } }
+        internal AlbumArtistlist AlbumArtistlist { get { return new AlbumArtistlist(_tracklist); } }
 
-        public static string GetStreamUrl(string song_id)
+        internal string GetStreamUrl(string song_id, string preview_token = null)
         {
-            StreamUrl url = GMClient.GetStreamUrl(song_id);
+            StreamUrl url = _GMClient.GetStreamUrl(song_id, preview_token);
             return (url == null) ? null : url.url;
         }
 
-        private static bool CheckForInternetConnection()
+        private bool CheckForInternetConnection()
         {
             try
             {
                 using (WebClient client = new WebClient())
                 {
-                    client.Proxy = proxy;
+                    client.Proxy = Proxy;
                     using (Stream stream = client.OpenRead("http://www.google.com/"))
                         return true;
                 }
@@ -125,7 +135,7 @@ namespace Jamcast.Plugins.GoogleMusic
             }
         }
 
-        private static void ErrorHandler(string message, Exception error)
+        private void ErrorHandler(string message, Exception error)
         {
             Log.Error(Plugin.LOG_MODULE, message, error);
         }

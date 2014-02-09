@@ -49,7 +49,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
             if (this.ObjectData is String)
             {
-                AlbumArtistlist a = GoogleMusicAPI.AlbumArtistlist;
+                AlbumArtistlist a = GoogleMusicAPI.Instance.AlbumArtistlist;
 
                 if (a == null)
                 {
@@ -72,8 +72,7 @@ namespace Jamcast.Plugins.GoogleMusic
                 Albumlist al = new Albumlist(aa.tracks);
                 Album alltracks = new Album();
 
-                alltracks.album = String.Format("All tracks of {0}", aa.albumArtist);
-                alltracks.albumArtist = aa.albumArtist;
+                alltracks.title = String.Format("All tracks by {0}", aa.albumArtist);
                 alltracks.tracks = aa.tracks;
                 al.albums.Add(alltracks);
 

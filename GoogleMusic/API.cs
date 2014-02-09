@@ -154,6 +154,39 @@ namespace GoogleMusic
 
         #region GoogleMusicServices
 
+        public Status GetStatus()
+        {
+            string response;
+            Status status;
+
+            response = GoogleMusicService(Service.getstatus);
+
+            if (String.IsNullOrEmpty(response))
+            {
+                status = null;
+            }
+            else
+            {
+                status = JsonConvert.DeserializeObject<Status>(response);
+            }
+
+            return status;
+        }
+
+        public int GetTrackCount()
+        {
+            Status status = GetStatus();
+
+            if (status == null)
+            {
+                return 0;
+            }
+            else
+            {
+                return status.availableTracks;
+            }
+        }
+
         public Playlist GetAllTracks()
         {
             Playlist playlist;
@@ -321,7 +354,7 @@ namespace GoogleMusic
             return response;
         }
 
-        public StreamUrl GetStreamUrl(string song_id)
+        public StreamUrl GetStreamUrl(string song_id, string preview_token = null)
         {
             HttpWebRequest request;
             string response;
@@ -330,7 +363,10 @@ namespace GoogleMusic
 
             try
             {
-                request = httpGetRequest("https://play.google.com/music/play" + String.Format("?songid={0}&pt=e", song_id));
+                if (!String.IsNullOrEmpty(preview_token))
+                    request = httpGetRequest("https://play.google.com/music/playpreview" + String.Format("?mode=streaming&preview={0}&tid={1}&pt=e", preview_token, song_id));
+                else
+                    request = httpGetRequest("https://play.google.com/music/play" + String.Format("?songid={0}&pt=e", song_id));
                 request.CookieContainer = _credentials.cookieJar;
                 response = httpResponse(request);
             }
@@ -341,6 +377,11 @@ namespace GoogleMusic
             }
 
             return JsonConvert.DeserializeObject<StreamUrl>(response);
+        }
+
+        public StreamUrl GetStreamUrl(Track track)
+        {
+            return GetStreamUrl(track.id, track.previewToken);
         }
 
         #endregion
@@ -450,13 +491,16 @@ namespace GoogleMusic
             deleteplaylist,
             deletesong,
             fixsongmatch,
+            getstatus,
             imageupload,
             loadalltracks,
             loadplaylist,
             modifyentries,
             modifyplaylist,
             multidownload,
-            search
+            recommendedforyou,
+            search,
+            sharedwithme
         }
 
     }

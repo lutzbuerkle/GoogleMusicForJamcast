@@ -39,7 +39,7 @@ namespace Jamcast.Plugins.GoogleMusic
         public override void GetChildren(int startIndex, int count, out int totalMatches)
         {
 
-            if (GoogleMusicAPI.LoggedIn)
+            if (GoogleMusicAPI.Instance.LoggedIn)
             {
                 totalMatches = 2;
 

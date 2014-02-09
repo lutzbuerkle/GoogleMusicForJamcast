@@ -49,7 +49,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
             if (this.ObjectData is String)
             {
-                Albumlist a = GoogleMusicAPI.Albumlist;
+                Albumlist a = GoogleMusicAPI.Instance.Albumlist;
 
                 if (a == null)
                 {

@@ -78,7 +78,7 @@ namespace Jamcast.Plugins.GoogleMusic
                     return;
 
                 Configuration.Instance.Login = frm.Login.Trim();
-                Configuration.Instance.Password = Configuration.Encrypt(frm.Password.Trim());
+                Configuration.Instance.Password = frm.Password.Trim();
                 Configuration.Instance.IsEnabled = true;
                 
             }

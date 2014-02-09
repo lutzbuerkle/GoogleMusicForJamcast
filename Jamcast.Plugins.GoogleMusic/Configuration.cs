@@ -39,16 +39,21 @@ namespace Jamcast.Plugins.GoogleMusic
 
         private const string CONFIGURATION_KEY = "GoogleMusicConfiguration";
 
-        public string Login { get; set; }
-        public string Password { get; set; }
-        public bool IsEnabled { get; set; }
-
         private static Configuration _instance;
+        private string _password;
 
         private Configuration() { }
 
-        internal static Configuration Instance {
+        public bool IsEnabled { get; set; }
+        public string Login { get; set; }
+        public string Password
+        {
+            get { return Decrypt(_password); }
+            set { _password = Encrypt(value); }
+        }
 
+        internal static Configuration Instance
+        {
             get {
                 if (_instance == null) {
                     _instance = PluginDataProvider.XmlDeserialize<Configuration>(CONFIGURATION_KEY);
@@ -62,12 +67,12 @@ namespace Jamcast.Plugins.GoogleMusic
             }
         }
 
-        internal void Save() {
-
+        internal void Save()
+        {
             PluginDataProvider.XmlSerialize<Configuration>(CONFIGURATION_KEY, _instance);
         }
 
-        internal static string Encrypt(string plainText)
+        private string Encrypt(string plainText)
         {
             if (String.IsNullOrEmpty(plainText))
                 return null;
@@ -78,7 +83,7 @@ namespace Jamcast.Plugins.GoogleMusic
             return Convert.ToBase64String(encrypted);
         }
 
-        internal static string Decrypt(string cipher)
+        private string Decrypt(string cipher)
         {
             if (String.IsNullOrEmpty(cipher))
                 return null;
