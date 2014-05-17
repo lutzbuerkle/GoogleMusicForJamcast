@@ -37,33 +37,33 @@ namespace Jamcast.Plugins.GoogleMusic {
     [ObjectRenderer(ServerObjectType.Track)]
     public class GMTrack : ObjectRenderer
     {
-        private static Regex _regex = new Regex(@"^(?<URL>.+)=", RegexOptions.Compiled);
+        private static readonly Regex _regex = new Regex(@"^(?<URL>.+)=", RegexOptions.Compiled);
 
         public override ServerObject GetMetadata()
         {
 
             Track t = this.ObjectData as Track;
-            string[] contextData = new string[] { t.id, "NIL" };
-
-            if (!String.IsNullOrEmpty(t.previewToken)) contextData[1] = t.previewToken;
+            string[] contextData = new string[] { t.id };
 
             AudioItem track = new AudioItem(new MediaServerLocation(typeof(TrackHandler), contextData), MediaFormats.MP3);
             track.Title = t.title;
             track.Genre = t.genre;
-            track.AlbumArtist = t.albumArtist;
-            track.Artists.Add(t.artist);
+            track.AlbumArtist = t.albumArtistUnified;
+            if (t.artistUnified != null)
+                track.Artists.Add(t.artistUnified);
             track.Album = t.album;
             track.TrackNumber = t.track;
             track.Seconds = t.durationMillis / 1000;
-            track.Composers.Add(t.composer);
-            if (!String.IsNullOrEmpty(t.albumArtUrl))
+            if (t.composer != null)
+                track.Composers.Add(t.composer);
+            if (t.albumArtRef.Count > 0)
             {
                 string albumArtUrl;
-                Match match = _regex.Match(t.albumArtUrl);
+                Match match = _regex.Match(t.albumArtRef[0].url);
                 if (match.Success)
                     albumArtUrl = match.Groups["URL"].Value;
                 else
-                    albumArtUrl = t.albumArtUrl;
+                    albumArtUrl = t.albumArtRef[0].url;
                 track.AlbumArt = new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG);
             }
 

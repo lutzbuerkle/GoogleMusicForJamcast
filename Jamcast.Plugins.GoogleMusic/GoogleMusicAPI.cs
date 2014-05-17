@@ -42,8 +42,8 @@ namespace Jamcast.Plugins.GoogleMusic
 
         private static GoogleMusicAPI _instance;
 
-        private GoogleMusicClient _GMClient;
-        private Playlist _tracklist;
+        private GoogleMusicWebClient _GMClient;
+        private Tracklist _tracklist;
         private Playlists _playlists;
 
         static GoogleMusicAPI()
@@ -54,10 +54,10 @@ namespace Jamcast.Plugins.GoogleMusic
 
         private GoogleMusicAPI()
         {
-            _GMClient = new GoogleMusicClient();
+            _GMClient = new GoogleMusicWebClient();
             _GMClient.ErrorHandler += ErrorHandler;
             _GMClient.Proxy = Proxy;
-            _tracklist = new Playlist();
+            _tracklist = new Tracklist();
             _playlists = new Playlists();
         }
 
@@ -90,9 +90,9 @@ namespace Jamcast.Plugins.GoogleMusic
                         Log.Info(Plugin.LOG_MODULE, "Logged into Google Music", null);
                         _tracklist = _GMClient.GetAllTracks();
                         _tracklist.Sort();
-                        Log.Info(Plugin.LOG_MODULE, String.Format("Tracklist containing {0} tracks obtained from Google Music", _tracklist.tracks.Count), null);
-                        _playlists = (Playlists)_GMClient.GetPlaylist();
-                        Log.Info(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", _playlists.playlists.Count), null);
+                        Log.Info(Plugin.LOG_MODULE, String.Format("Tracklist containing {0} tracks obtained from Google Music", _tracklist.Count), null);
+                        _playlists = _GMClient.GetPlaylists();
+                        Log.Info(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", _playlists.Count), null);
                     }
                     else
                     {
@@ -104,7 +104,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
         internal bool LoggedIn { get { return _GMClient.LoginStatus; } }
 
-        internal Playlist Tracklist { get { return _tracklist; } }
+        internal Tracklist Tracklist { get { return _tracklist; } }
 
         internal Playlists Playlists { get { return _playlists; } }
 
@@ -112,9 +112,11 @@ namespace Jamcast.Plugins.GoogleMusic
 
         internal AlbumArtistlist AlbumArtistlist { get { return new AlbumArtistlist(_tracklist); } }
 
-        internal string GetStreamUrl(string song_id, string preview_token = null)
+        internal string GetStreamUrl(string song_id)
         {
-            StreamUrl url = _GMClient.GetStreamUrl(song_id, preview_token);
+            if (song_id.StartsWith("T")) return null;
+
+            StreamUrl url = _GMClient.GetStreamUrl(song_id);
             return (url == null) ? null : url.url;
         }
 

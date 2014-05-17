@@ -57,13 +57,13 @@ namespace Jamcast.Plugins.GoogleMusic
                     return;
                 }
 
-                totalMatches = a.albums.Count;
+                totalMatches = a.Count;
 
                 count = Math.Min(count, totalMatches - startIndex);
 
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
-                    this.CreateChildObject<AlbumContainer>(a.albums[i]);
+                    this.CreateChildObject<AlbumContainer>(a[i]);
                 }
             }
             else

@@ -57,13 +57,13 @@ namespace Jamcast.Plugins.GoogleMusic
                     return;
                 }
 
-                totalMatches = a.albumArtists.Count;
+                totalMatches = a.Count;
 
                 count = Math.Min(count, totalMatches - startIndex);
 
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
-                    this.CreateChildObject<AlbumArtistContainer>(a.albumArtists[i]);
+                    this.CreateChildObject<AlbumArtistContainer>(a[i]);
                 }
             }
             else if (this.ObjectData is AlbumArtist)
@@ -72,17 +72,17 @@ namespace Jamcast.Plugins.GoogleMusic
                 Albumlist al = new Albumlist(aa.tracks);
                 Album alltracks = new Album();
 
-                alltracks.title = String.Format("All tracks by {0}", aa.albumArtist);
+                alltracks.album = String.Format("All tracks by {0}", aa.albumArtist);
                 alltracks.tracks = aa.tracks;
-                al.albums.Add(alltracks);
+                al.Add(alltracks);
 
-                totalMatches = al.albums.Count;
+                totalMatches = al.Count;
 
                 count = Math.Min(count, totalMatches - startIndex);
 
                 for (int i = startIndex; i < startIndex + count; i++)
                 {
-                    this.CreateChildObject<AlbumArtistContainer>(al.albums[i]);
+                    this.CreateChildObject<AlbumArtistContainer>(al[i]);
                 }
             }
             else

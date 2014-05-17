@@ -52,13 +52,9 @@ namespace Jamcast.Plugins.GoogleMusic
         public override DataPipeBase RetrieveMedia()
         {
             string song_id = Context.Data[0];
-            string preview_token = Context.Data[1];
             string url;
 
-            if (preview_token == "NIL")
-                url = GoogleMusicAPI.Instance.GetStreamUrl(song_id);
-            else
-                url = GoogleMusicAPI.Instance.GetStreamUrl(song_id, preview_token);
+            url = GoogleMusicAPI.Instance.GetStreamUrl(song_id);
 
             if (String.IsNullOrEmpty(url))
                 throw new BadMediaRequestException(String.Format("Track is unavailable (song_id: {0}).", song_id));
