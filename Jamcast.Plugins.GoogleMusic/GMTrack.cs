@@ -29,7 +29,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
-using System;
 using System.Text.RegularExpressions;
 
 namespace Jamcast.Plugins.GoogleMusic {
@@ -41,7 +40,6 @@ namespace Jamcast.Plugins.GoogleMusic {
 
         public override ServerObject GetMetadata()
         {
-
             Track t = this.ObjectData as Track;
             string[] contextData = new string[] { t.id };
 
@@ -56,16 +54,17 @@ namespace Jamcast.Plugins.GoogleMusic {
             track.Seconds = t.durationMillis / 1000;
             if (t.composer != null)
                 track.Composers.Add(t.composer);
-            if (t.albumArtRef.Count > 0)
-            {
-                string albumArtUrl;
-                Match match = _regex.Match(t.albumArtRef[0].url);
-                if (match.Success)
-                    albumArtUrl = match.Groups["URL"].Value;
-                else
-                    albumArtUrl = t.albumArtRef[0].url;
-                track.AlbumArt = new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG);
-            }
+            if (t.albumArtRef != null)
+                if (t.albumArtRef.Count > 0)
+                {
+                    string albumArtUrl;
+                    Match match = _regex.Match(t.albumArtRef[0].url);
+                    if (match.Success)
+                        albumArtUrl = match.Groups["URL"].Value;
+                    else
+                        albumArtUrl = t.albumArtRef[0].url;
+                    track.AlbumArt = new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG);
+                }
 
             return track;
 

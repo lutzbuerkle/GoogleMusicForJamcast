@@ -29,7 +29,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using GoogleMusic;
 using Jamcast.Extensibility;
 using System;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading;
 
@@ -42,9 +44,11 @@ namespace Jamcast.Plugins.GoogleMusic
 
         private static GoogleMusicAPI _instance;
 
-        private GoogleMusicWebClient _GMClient;
+        private GoogleMusicMobileClient _MobileClient;
+        private GoogleMusicWebClient _WebClient;
         private Tracklist _tracklist;
         private Playlists _playlists;
+        private ulong _deviceId;
 
         static GoogleMusicAPI()
         {
@@ -54,9 +58,12 @@ namespace Jamcast.Plugins.GoogleMusic
 
         private GoogleMusicAPI()
         {
-            _GMClient = new GoogleMusicWebClient();
-            _GMClient.ErrorHandler += ErrorHandler;
-            _GMClient.Proxy = Proxy;
+            _MobileClient = new GoogleMusicMobileClient();
+            _MobileClient.ErrorHandler += ErrorHandler;
+            _MobileClient.Proxy = Proxy;
+            _WebClient = new GoogleMusicWebClient();
+            _WebClient.ErrorHandler += ErrorHandler;
+            _WebClient.Proxy = Proxy;
             _tracklist = new Tracklist();
             _playlists = new Playlists();
         }
@@ -73,7 +80,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
                 for (int i = 0; i < MAX_CONN_ATTEMPTS; i++)
                 {
-                Log.Info(Plugin.LOG_MODULE, "Checking for internet connection", null);
+                    Log.Info(Plugin.LOG_MODULE, "Checking for internet connection", null);
                     if (connected = CheckForInternetConnection()) break;
                     Thread.Sleep(DELAY_CONN_ATTEMPTS);
                 }
@@ -84,14 +91,26 @@ namespace Jamcast.Plugins.GoogleMusic
                 }
                 else
                 {
-                    _GMClient.Login(login, passwd);
-                    if (_GMClient.LoginStatus)
+                    _MobileClient.Login(login, passwd);
+                    if (_MobileClient.LoginStatus)
                     {
                         Log.Info(Plugin.LOG_MODULE, "Logged into Google Music", null);
-                        _tracklist = _GMClient.GetAllTracks();
+                        _WebClient.Login(_MobileClient);
+                        if (_WebClient.LoginStatus)
+                            _deviceId = GetDeviceId();
+                        Log.Info(Plugin.LOG_MODULE, String.Format("Using device id {0}", _deviceId), null);
+                        _tracklist = _MobileClient.GetAllTracks();
                         _tracklist.Sort();
                         Log.Info(Plugin.LOG_MODULE, String.Format("Tracklist containing {0} tracks obtained from Google Music", _tracklist.Count), null);
-                        _playlists = _GMClient.GetPlaylists();
+                        _playlists = _MobileClient.GetPlaylists();
+                        foreach (Playlist p in _playlists)
+                        {
+                            for (int i = 0; i < p.tracks.Count; i++)
+                            {
+                                Track t = p.tracks[i];
+                                if (t.ToString() == null) p.tracks[i] = _tracklist[t.id];
+                            }
+                        }
                         Log.Info(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", _playlists.Count), null);
                     }
                     else
@@ -102,7 +121,7 @@ namespace Jamcast.Plugins.GoogleMusic
             });
         }
 
-        internal bool LoggedIn { get { return _GMClient.LoginStatus; } }
+        internal bool LoggedIn { get { return _MobileClient.LoginStatus; } }
 
         internal Tracklist Tracklist { get { return _tracklist; } }
 
@@ -114,10 +133,48 @@ namespace Jamcast.Plugins.GoogleMusic
 
         internal string GetStreamUrl(string song_id)
         {
-            if (song_id.StartsWith("T")) return null;
+            StreamUrl url;
 
-            StreamUrl url = _GMClient.GetStreamUrl(song_id);
+            if (_deviceId == 0)
+            {
+                url = _WebClient.GetStreamUrl(song_id);
+            }
+            else
+            {
+                url = _MobileClient.GetStreamUrl(song_id, _deviceId);
+            }
+            Log.Debug(Plugin.LOG_MODULE, String.Format("Url obtained for song id {0}: {1}", song_id, url == null ? "NULL" : url.url), null);
+
             return (url == null) ? null : url.url;
+        }
+
+        private ulong GetDeviceId()
+        {
+            ulong deviceId = 0;
+
+            Settings settings = _WebClient.GetSettings();
+            if (settings != null)
+            {
+                string id;
+
+                var devices = settings.devices.FindAll(device => device.type.ToUpperInvariant() == "PHONE")
+                                      .OrderByDescending(device => device.lastUsed).ToArray();
+
+                if (devices.Length > 0)
+                {
+                    id = devices.First().id;
+
+                    if (!String.IsNullOrEmpty(id))
+                    {
+                        if (id.StartsWith("0x"))
+                            id = id.Substring(2);
+
+                        UInt64.TryParse(id, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out deviceId);
+                    }
+                }
+            }
+
+            return deviceId;
         }
 
         private bool CheckForInternetConnection()
@@ -127,7 +184,7 @@ namespace Jamcast.Plugins.GoogleMusic
                 using (WebClient client = new WebClient())
                 {
                     client.Proxy = Proxy;
-                    using (Stream stream = client.OpenRead("http://www.google.com/"))
+                    using (Stream stream = client.OpenRead("https://www.google.com/"))
                         return true;
                 }
             }

@@ -11,7 +11,8 @@
     <AssemblyName>GoogleMusic</AssemblyName>
     <TargetFrameworkVersion>v3.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
+    <TargetFrameworkProfile>
+    </TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>x86</PlatformTarget>
@@ -37,11 +38,18 @@
   <PropertyGroup>
     <StartupObject />
   </PropertyGroup>
+  <PropertyGroup>
+    <CustomConstants Condition=" '$(TargetFrameworkVersion)' == 'v4.0' ">NET40</CustomConstants>
+    <CustomConstants Condition=" '$(TargetFrameworkVersion)' == 'v4.5' ">NET45</CustomConstants>
+    <DefineConstants Condition=" '$(DefineConstants)' != '' And '$(CustomConstants)' != '' ">$(DefineConstants);</DefineConstants>
+    <DefineConstants>$(DefineConstants)$(CustomConstants)</DefineConstants>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="API.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="JsArrayParser.cs" />
     <Compile Include="JsonConvert.cs" />
+    <Compile Include="MobileClient.cs" />
     <Compile Include="Models.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WebClient.cs" />
