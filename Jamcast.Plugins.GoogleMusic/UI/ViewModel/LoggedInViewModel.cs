@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,47 +27,26 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 using System;
-using System.Windows.Forms;
 
-namespace Jamcast.Plugins.GoogleMusic
+namespace Jamcast.Plugins.GoogleMusic.UI.ViewModel
 {
+    class LoggedInViewModel
+    {
+        public RelayCommand LogOutCommand { get; private set; }
+        public event Action OnLoggedOut;
 
-    public partial class LoginForm : Form {
-
-        public string Login { get; private set; }
-        public string Password { get; private set; }
-
-        public LoginForm() {
-
-            InitializeComponent();
-
-            txtLogin.Text = Configuration.Instance.Login;
-
+        public LoggedInViewModel()
+        {
+            this.LogOutCommand = new RelayCommand(logOut);
         }
 
-        private void cmdOK_Click(object sender, EventArgs e) {
-
-            string login, password;
-
-            login = txtLogin.Text.Trim();
-            password = txtPassword.Text.Trim();
-
-            if (String.IsNullOrEmpty(login)
-                || String.IsNullOrEmpty(password)) {
-
-                MessageBox.Show("Please enter a valid e-mail address and password.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-
-            }
-
-            this.Login = login;
-            this.Password = password;
-
-            this.DialogResult = DialogResult.OK;
-            this.Close();
-
+        private void logOut(object param)
+        {
+            Configuration.Instance.Password = null;            
+            Configuration.Instance.Save();
+            if(this.OnLoggedOut != null)
+                this.OnLoggedOut();
         }
 
     }
-
 }

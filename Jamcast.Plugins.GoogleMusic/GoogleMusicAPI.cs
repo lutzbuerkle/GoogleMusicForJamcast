@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -33,26 +33,39 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.ServiceModel;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace Jamcast.Plugins.GoogleMusic
 {
     internal class GoogleMusicAPI
     {
+        internal const int LOGIN_SUCCESS = 0;
+        internal const int LOGIN_FAILURE__NO_INTERNET_CONNECTION = 1;
+        internal const int LOGIN_FAILURE__WRONG_CREDENTIALS = 2;
+        internal const int LOGIN_BUSY = -1;
+
         private const int DELAY_CONN_ATTEMPTS = 10000;
-        private const int MAX_CONN_ATTEMPTS = 12;
+
+        private static readonly Regex _regex = new Regex(@"^(?<URL>.+)=", RegexOptions.Compiled);
 
         private static GoogleMusicAPI _instance;
 
         private GoogleMusicMobileClient _MobileClient;
         private GoogleMusicWebClient _WebClient;
-        private Tracklist _tracklist;
-        private Playlists _playlists;
+        private PersistedTracklist _tracklist;
+        private PersistedPlaylists _playlists;
+        private PersistedAlbumlist _albums;
+        private PersistedAlbumArtistlist _albumArtists;
         private ulong _deviceId;
+
+        internal delegate void OnLoginDelegate(int status);
 
         static GoogleMusicAPI()
         {
             Proxy = null;
+            OnLogin = null;
             _instance = new GoogleMusicAPI();
         }
 
@@ -64,72 +77,141 @@ namespace Jamcast.Plugins.GoogleMusic
             _WebClient = new GoogleMusicWebClient();
             _WebClient.ErrorHandler += ErrorHandler;
             _WebClient.Proxy = Proxy;
-            _tracklist = new Tracklist();
-            _playlists = new Playlists();
+            _tracklist = new PersistedTracklist();
+            _playlists = new PersistedPlaylists();
+            _albums = new PersistedAlbumlist();
+            _albumArtists = new PersistedAlbumArtistlist();
         }
+
+        internal static event OnLoginDelegate OnLogin;
 
         internal static WebProxy Proxy { get; set; }
 
-        internal static GoogleMusicAPI Instance { get { return _instance; } }
-
-        internal void Login(string login, string passwd)
-        {
-            ThreadPool.QueueUserWorkItem(y =>
+        internal static GoogleMusicAPI Instance
+        { 
+            get
             {
-                bool connected = false;
+                if (_instance == null) _instance = new GoogleMusicAPI();
+                return _instance;
+            } 
+        }
 
-                for (int i = 0; i < MAX_CONN_ATTEMPTS; i++)
-                {
-                    Log.Info(Plugin.LOG_MODULE, "Checking for internet connection", null);
-                    if (connected = CheckForInternetConnection()) break;
-                    Thread.Sleep(DELAY_CONN_ATTEMPTS);
-                }
+        internal int Login(string login, string passwd, int numConnAttempts = 1)
+        {
+            int status = LOGIN_BUSY;
+            bool connected = false;
 
-                if (!connected)
+            IsLoggingIn = true;
+            if (OnLogin != null) OnLogin(status);
+
+            for (int i = 0; i < numConnAttempts; i++)
+            {
+                Log.Debug(Plugin.LOG_MODULE, "Checking for internet connection", null);
+                if (connected = CheckForInternetConnection()) break;
+                Thread.Sleep(DELAY_CONN_ATTEMPTS);
+            }
+
+            if (!connected)
+            {
+                status = LOGIN_FAILURE__NO_INTERNET_CONNECTION;
+            }
+            else
+            {
+                _MobileClient.Login(login, passwd);
+                if (_MobileClient.LoginStatus)
                 {
-                    Log.Info(Plugin.LOG_MODULE, "Logging into Google Music failed. No connection to the internet", null);
+                    status = LOGIN_SUCCESS;
                 }
                 else
                 {
-                    _MobileClient.Login(login, passwd);
-                    if (_MobileClient.LoginStatus)
-                    {
-                        Log.Info(Plugin.LOG_MODULE, "Logged into Google Music", null);
-                        _WebClient.Login(_MobileClient);
-                        if (_WebClient.LoginStatus)
-                            _deviceId = GetDeviceId();
-                        Log.Info(Plugin.LOG_MODULE, String.Format("Using device id {0}", _deviceId), null);
-                        _tracklist = _MobileClient.GetAllTracks();
-                        _tracklist.Sort();
-                        Log.Info(Plugin.LOG_MODULE, String.Format("Tracklist containing {0} tracks obtained from Google Music", _tracklist.Count), null);
-                        _playlists = _MobileClient.GetPlaylists();
-                        foreach (Playlist p in _playlists)
-                        {
-                            for (int i = 0; i < p.tracks.Count; i++)
-                            {
-                                Track t = p.tracks[i];
-                                if (t.ToString() == null) p.tracks[i] = _tracklist[t.id];
-                            }
-                        }
-                        Log.Info(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", _playlists.Count), null);
-                    }
-                    else
-                    {
-                        Log.Info(Plugin.LOG_MODULE, "Logging into Google Music failed", null);
-                    }
+                    status = LOGIN_FAILURE__WRONG_CREDENTIALS;
                 }
-            });
+            }
+
+            IsLoggingIn = false;
+            if (OnLogin != null) OnLogin(status);
+
+            return status;
         }
+
+        internal void GetMusicData()
+        {
+            if (_MobileClient.LoginStatus && CheckForInternetConnection())
+            {
+                _WebClient.Login(_MobileClient);
+                if (_WebClient.LoginStatus)
+                    _deviceId = GetDeviceId();
+                Log.Debug(Plugin.LOG_MODULE, String.Format("Using device id {0}", _deviceId), null);
+
+                Tracklist tracklist = _MobileClient.GetAllTracks();
+                if (tracklist != null)
+                {
+                    _tracklist = new PersistedTracklist(tracklist);
+                    _tracklist.Sort();
+                    Log.Debug(Plugin.LOG_MODULE, String.Format("{0} tracks obtained from Google Music", _tracklist.Count), null);
+
+                    _albums = new PersistedAlbumlist(_tracklist);
+                    Log.Debug(Plugin.LOG_MODULE, String.Format("{0} albums in database", _albums.Count), null);
+
+                    _albumArtists = new PersistedAlbumArtistlist(_albums);
+                    foreach (PersistedAlbumArtist albumArtist in _albumArtists)
+                    {
+                        PersistedAlbum alltracks = new PersistedAlbum();
+                        alltracks.album = String.Format("All tracks by {0}", albumArtist);
+                        alltracks.albumArtist = albumArtist.albumArtist;
+                        alltracks.albumArtistSort = albumArtist.albumArtistSort;
+                        alltracks.tracks = new PersistedTracklist();
+                        foreach (PersistedAlbum album in albumArtist.albums)
+                        {
+                            alltracks.tracks.AddRange(album.tracks);
+                        }
+                        alltracks.tracks.Sort();
+                        albumArtist.albums.Add(alltracks);
+                    }
+                    Log.Debug(Plugin.LOG_MODULE, String.Format("{0} album artists in database", _albumArtists.Count), null);
+                }
+                else
+                {
+                    Log.Info(Plugin.LOG_MODULE, String.Format("Failed to update tracklist from Google Music"), null);
+                }
+
+                Playlists playlists = _MobileClient.GetPlaylists();
+                if (playlists != null)
+                {
+                    _playlists = new PersistedPlaylists(playlists);
+                    _playlists.Sort();
+                    Log.Debug(Plugin.LOG_MODULE, String.Format("{0} playlists obtained from Google Music", _playlists.Count), null);
+                }
+                else
+                {
+                    Log.Info(Plugin.LOG_MODULE, String.Format("Failed to update playlists from Google Music"), null);
+                }
+            }
+            else
+            {
+                Log.Info(Plugin.LOG_MODULE, String.Format("Failed to update music data from Google Music"), null);
+            }
+        }
+
+        internal void Logout()
+        {
+            _MobileClient.Logout();
+            _WebClient.Logout();
+            _instance = new GoogleMusicAPI();
+            Log.Debug(Plugin.LOG_MODULE, "Logged out of Google Music", null);
+        }
+
+        internal bool IsLoggingIn { get; private set; }
 
         internal bool LoggedIn { get { return _MobileClient.LoginStatus; } }
 
-        internal Tracklist Tracklist { get { return _tracklist; } }
+        internal PersistedTracklist Tracks { get { return _tracklist; } }
 
-        internal Playlists Playlists { get { return _playlists; } }
+        internal PersistedPlaylists Playlists { get { return _playlists; } }
 
-        internal Albumlist Albumlist { get { return new Albumlist(_tracklist); } }
+        internal PersistedAlbumlist Albums { get { return _albums; } }
 
-        internal AlbumArtistlist AlbumArtistlist { get { return new AlbumArtistlist(_tracklist); } }
+        internal PersistedAlbumArtistlist AlbumArtists { get { return _albumArtists; } }
 
         internal string GetStreamUrl(string song_id)
         {
@@ -146,6 +228,42 @@ namespace Jamcast.Plugins.GoogleMusic
             Log.Debug(Plugin.LOG_MODULE, String.Format("Url obtained for song id {0}: {1}", song_id, url == null ? "NULL" : url.url), null);
 
             return (url == null) ? null : url.url;
+        }
+
+        internal string GetAlbumArtUrl(Track track)
+        {
+            string albumArtUrl = null;
+
+            if (track.albumArtRef != null && track.albumArtRef.Count > 0)
+            {
+                Match match = _regex.Match(track.albumArtRef.First().url);
+                if (match.Success)
+                    albumArtUrl = match.Groups["URL"].Value;
+                else
+                    albumArtUrl = track.albumArtRef.First().url;
+            }
+
+            return albumArtUrl;
+        }
+
+        internal PersistedTrack GetTrack(string id)
+        {
+            return _tracklist[id];
+        }
+
+        internal PersistedPlaylist GetPlaylist(string id)
+        {
+            return _playlists[id];
+        }
+
+        internal PersistedAlbum GetAlbum(string id)
+        {
+            return _albums[id];
+        }
+
+        internal PersistedAlbumArtist GetAlbumArtist(string id)
+        {
+            return _albumArtists[id];
         }
 
         private ulong GetDeviceId()
@@ -200,4 +318,72 @@ namespace Jamcast.Plugins.GoogleMusic
         }
 
     }
+
+    [ServiceContract(SessionMode = SessionMode.Required, CallbackContract = typeof(IGoogleMusicWCFCallbacks))]
+    public interface IGoogleMusicWCFServices
+    {
+        [OperationContract]
+        int Login(string login, string passwd);
+        [OperationContract]
+        bool IsLoggingIn();
+        [OperationContract]
+        bool LoggedIn();
+        [OperationContract]
+        void GetMusicData();
+        [OperationContract]
+        void Logout();
+        [OperationContract]
+        void SubscribeToCallback();
+    }
+
+    public interface IGoogleMusicWCFCallbacks
+    {
+        [OperationContract(IsOneWay = true)]
+        void OnLogin(int status);
+    }
+
+    public class GoogleMusicWCFServices : IGoogleMusicWCFServices
+    {
+        private static IGoogleMusicWCFCallbacks _callbacks;
+
+        public int Login(string login, string passwd)
+        {
+            return GoogleMusicAPI.Instance.Login(login, passwd);
+        }
+
+        public bool IsLoggingIn()
+        {
+            return GoogleMusicAPI.Instance.IsLoggingIn;
+        }
+
+        public bool LoggedIn()
+        {
+            return GoogleMusicAPI.Instance.LoggedIn;
+        }
+
+        public void GetMusicData()
+        {
+            GoogleMusicAPI.Instance.GetMusicData();
+        }
+
+        public void Logout()
+        {
+            GoogleMusicAPI.Instance.Logout();
+        }
+
+        public void SubscribeToCallback()
+        {
+            _callbacks = OperationContext.Current.GetCallbackChannel<IGoogleMusicWCFCallbacks>();
+        }
+
+        public static void OnLoginCallback(int status)
+        {
+            if (_callbacks != null)
+            {
+                _callbacks.OnLogin(status);
+                Log.Trace(Plugin.LOG_MODULE, "Login callback triggered", null);
+            }
+        }
+    }
 }
+

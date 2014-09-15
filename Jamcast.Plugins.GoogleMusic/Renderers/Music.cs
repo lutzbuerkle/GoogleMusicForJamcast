@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -32,34 +32,31 @@ using Jamcast.Extensibility.Metadata;
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    [ObjectRenderer(ServerObjectType.GenericContainer)]
+    [ContainerRenderer(ContainerType.GenericContainer)]
     class Music : ContainerRenderer
     {
 
-        public override void GetChildren(int startIndex, int count, out int totalMatches)
+        private ObjectRenderInfo[] menu = new ObjectRenderInfo[]
         {
+            new ObjectRenderInfo(typeof(AlbumArtistlistRenderer), "Album Artists"),
+            new ObjectRenderInfo(typeof(AlbumlistRenderer), "Albums"),
+            new ObjectRenderInfo(typeof(TracklistRenderer), "Tracks"),
+            //new ObjectRenderInfo(typeof(GenrelistRenderer), "Genres"),
+        };
 
-            totalMatches = 3;
+        public override int PrepareGetChildren(int startIndex, int count)
+        {
+            return menu.Length;
+        }
 
-            if (startIndex == 0)
-                this.CreateChildObject<AlbumArtistContainer>("Album Artists");
-
-            if (startIndex <= 1)
-                this.CreateChildObject<AlbumContainer>("Albums");
-
-            if (startIndex <= 2)
-                this.CreateChildObject<TrackContainer>("Tracks");
-
-            //if (startIndex <= 3)
-            //    this.CreateChildObject<GenreContainer>("Genres");
-
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return menu[index];
         }
 
         public override ServerObject GetMetadata()
         {
-
             return new GenericContainer(this.ObjectData.ToString());
-
         }
 
     }

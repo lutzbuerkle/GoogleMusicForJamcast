@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -27,40 +27,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 using Jamcast.Extensibility.ContentDirectory;
-using Jamcast.Extensibility.Metadata;
 
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    [ObjectRenderer(ServerObjectType.GenericContainer)]
-    class Root : ContainerRenderer
+    [ContainerRenderer(ViewType = ContainerRendererViewType.Tabs)]
+    class Root : RootContainerRenderer
     {
 
-        public override void GetChildren(int startIndex, int count, out int totalMatches)
+        private ObjectRenderInfo[] menu = new ObjectRenderInfo[] { 
+                new ObjectRenderInfo(typeof(Music), "My Music"),
+                new ObjectRenderInfo(typeof(PlaylistsRenderer), "Playlists"),
+        };
+
+        public override int PrepareGetChildren(int startIndex, int count)
         {
-
-            if (GoogleMusicAPI.Instance.LoggedIn)
-            {
-                totalMatches = 2;
-
-                if (startIndex == 0)
-                    this.CreateChildObject<Music>("My Music");
-
-                if (startIndex <= 1)
-                    this.CreateChildObject<PlaylistContainer>("Playlists");
-            }
-            else
-            {
-                totalMatches = 0;
-            }
-
+            return menu.Length;
         }
 
-        public override ServerObject GetMetadata()
+        public override ObjectRenderInfo GetChildAt(int index)
         {
-
-            return new GenericContainer("Google Music");
-
+            return menu[index];
         }
 
     }

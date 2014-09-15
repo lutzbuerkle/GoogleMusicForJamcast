@@ -1,6 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Express 2012 for Windows Desktop
+# Visual Studio Express 2013 for Windows Desktop
+VisualStudioVersion = 12.0.21005.1
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Jamcast.Plugins.GoogleMusic", "Jamcast.Plugins.GoogleMusic\Jamcast.Plugins.GoogleMusic.csproj", "{B22E7868-08B8-41F1-A06E-64A56007E7F3}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6D206528-C2F4-4134-A8FE-484E38789426} = {6D206528-C2F4-4134-A8FE-484E38789426}

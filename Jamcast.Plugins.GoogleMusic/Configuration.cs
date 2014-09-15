@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -37,14 +37,13 @@ namespace Jamcast.Plugins.GoogleMusic
     [Serializable]
     public class Configuration {
 
-        private const string CONFIGURATION_KEY = "GoogleMusicConfiguration";
+        internal const string CONFIGURATION_KEY = "GoogleMusicConfiguration";
 
         private static Configuration _instance;
         private string _password;
 
         private Configuration() { }
 
-        public bool IsEnabled { get; set; }
         public string Login { get; set; }
         public string Password
         {

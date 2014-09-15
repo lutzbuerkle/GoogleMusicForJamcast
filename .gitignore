@@ -3,3 +3,4 @@
 /Jamcast.Plugins.GoogleMusic/bin/
 /Jamcast.Plugins.GoogleMusic/obj/
 /Jamcast.Plugins.GoogleMusic/*.jpl
+*.suo

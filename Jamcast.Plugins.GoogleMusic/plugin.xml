@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<plugin xmlns="http://sdstechnologies.com/jamcast/plugin/manifest/1.0">
-	<name>Google Music</name>
-	<publisherName>Lutz Bürkle, Stuttgart, Germany</publisherName>	
-	<assemblyName>Jamcast.Plugins.GoogleMusic.dll</assemblyName>
+<plugin xmlns="http://sdstechnologies.com/jamcast/plugin/manifest/2.0">
+  <providerID>{553A4801-A2D7-49C6-A78E-9847290D381E}</providerID>
+  <name>Google Music</name>
+  <description>Google Music browse and playback for Jamcast.</description>
+  <publisherName>Lutz Bürkle, Stuttgart, Germany</publisherName>
+  <publisherUrl>http://www.lutz-buerkle.de</publisherUrl>
+  <iconResourceName>Jamcast.Plugins.GoogleMusic.Icon.png</iconResourceName>
+  <assemblyFileName>Jamcast.Plugins.GoogleMusic.dll</assemblyFileName>
   <files>
     <file>GoogleMusic.dll</file>
     <file>LICENSE</file>

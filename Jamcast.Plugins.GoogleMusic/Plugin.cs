@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -28,62 +28,129 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using Jamcast.Extensibility;
 using Jamcast.Extensibility.ContentDirectory;
+using Microsoft.Win32;
 using System;
+using System.ServiceModel;
+using System.Threading;
 
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    public class Plugin : IContentDirectoryPlugin {       
-
+    public class Plugin : SimplePlugin
+    {
         internal static string LOG_MODULE = "GoogleMusic";
 
-        public Type RootObjectRendererType {
+        private const int MAX_CONN_ATTEMPTS = 12;
+        private ServiceHost _host;
 
-            get { return typeof(Root); }
-
+        public override Type ConfigurationPanelType
+        {
+            get { return typeof(Jamcast.Plugins.GoogleMusic.UI.View.GoogleMusicPanel); }
         }
 
         public string DisplayName {
-
             get { return "Google Music"; }
-
         }
 
-        public Type ConfigurationPanelType {
-
-            get { return typeof(GMPanel); }
-
+        public override Type RootObjectRendererType
+        {
+            get { return typeof(Root); }
         }
 
-        public ObjectRenderInfo[] GetPromotedPlaylists() {
-
+        public ObjectRenderInfo[] GetPromotedPlaylists()
+        {
             return null;
-
         }
 
-        public bool Startup() {
-
+        public override bool Startup()
+        {
             string login = Configuration.Instance.Login;
             string passwd = Configuration.Instance.Password;
 
-            if (!Configuration.Instance.IsEnabled)
+            RegistryKey registryKey = Registry.LocalMachine.OpenSubKey("SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full");
+            if (registryKey == null)
             {
-                Log.Info(Plugin.LOG_MODULE, "Plugin is disabled.");
+                Log.Error(Plugin.LOG_MODULE, "Jamcast Google Music plugin requires .NET 4 full framework.", new Exception("NET 4 full framework not installed"));
+                return false;
+            }
+            else
+            {
+                try
+                {
+                    if (registryKey.GetValue("Install".ToUpper()).ToString() != "1")
+                    {
+                        Log.Error(Plugin.LOG_MODULE, "Jamcast Google Music plugin requires .NET 4 full framework.", new Exception("NET 4 full framework not installed"));
+                        return false;
+                    }
+                }
+                catch(Exception error)
+                {
+                    Log.Error(Plugin.LOG_MODULE, "Jamcast Google Music plugin requires .NET 4 full framework.", error);
+                    return false;
+                }
+            }
+
+            try
+            {
+                _host = new ServiceHost(typeof(GoogleMusicWCFServices), new Uri[] { new Uri("net.pipe://localhost") });
+                _host.AddServiceEndpoint(typeof(IGoogleMusicWCFServices), new NetNamedPipeBinding(), "PipeGoogleMusicForJamcast");
+                _host.Open();
+
+                GoogleMusicAPI.OnLogin += GoogleMusicWCFServices.OnLoginCallback;
+
+                Log.Debug(Plugin.LOG_MODULE, "WCF service established.", null);
+            }
+            catch (Exception error)
+            {
+                Log.Error(Plugin.LOG_MODULE, "WCF service could not be established.", error);
                 return false;
             }
 
-            if (String.IsNullOrEmpty(login) || String.IsNullOrEmpty(passwd)) return false;
+            Log.Info(Plugin.LOG_MODULE, "Google Music plugin initialized successfully.", null);
 
-            GoogleMusicAPI.Instance.Login(login, passwd);
+            if (String.IsNullOrWhiteSpace(login) || String.IsNullOrWhiteSpace(passwd))
+            {
+                Log.Debug(Plugin.LOG_MODULE, "No valid login credentials available.", null);
+            }
+            else
+            {
+                ThreadPool.QueueUserWorkItem(x =>
+                {
+                    int status = GoogleMusicAPI.Instance.Login(login, passwd, MAX_CONN_ATTEMPTS);
+                    if (status == GoogleMusicAPI.LOGIN_SUCCESS)
+                    {
+                        Log.Info(LOG_MODULE, "Logged into Google Music. Retrieving music data.", null);
+                        GoogleMusicAPI.Instance.GetMusicData();
+                    }
+                    else
+                    {
+                        if (status == GoogleMusicAPI.LOGIN_FAILURE__NO_INTERNET_CONNECTION)
+                        {
+                            Log.Info(LOG_MODULE, "Google Music login failed. No connection to the internet.", null);
+                        }
+                        else
+                        {
+                            Configuration.Instance.Password = null;
+                            Log.Info(LOG_MODULE, String.Format("Google Music login failed for user {0}. Wrong email or password", Configuration.Instance.Login), null);
+                        }
+                    }
+                });
+            }
 
             return true;
-
         }
 
-        public void Shutdown() {
+        public override void Shutdown()
+        {
+            _host.Close();
+            GoogleMusicAPI.Instance.Logout();
+            Log.Info(Plugin.LOG_MODULE, "Google Music plugin was shut down successfully", null);
+        }
 
-            // do nothing
-            Log.Debug(Plugin.LOG_MODULE, "Google Music plugin was shut down successfully", null);
+        public override void OnPreRender()
+        {
+            if (!GoogleMusicAPI.Instance.LoggedIn)
+                throw new PluginNotLoggedInException("Channel not logged into Google Music. Please log in using the Jamcast Server Manager.");
         }
 
     }

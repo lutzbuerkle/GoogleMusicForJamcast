@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,6 @@ using System.Net;
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    [MediaRequestHandler("553A4801-A2D7-49C6-A78E-9847290D381E")]
     public class TrackHandler : MediaRequestHandler
     {
         public override RequestInitializationResult Initialize()

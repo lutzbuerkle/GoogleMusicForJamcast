@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
 using System;
@@ -34,71 +33,50 @@ using System;
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    [ObjectRenderer(ServerObjectType.GenericContainer)]
-    public class AlbumArtistContainer : ContainerRenderer
+    public class AlbumArtistlistRenderer : ContainerRenderer
     {
+
+        private PersistedAlbumArtistlist albumArtists;
+
+        public override int PrepareGetChildren(int startIndex, int count)
+        {
+            albumArtists = GoogleMusicAPI.Instance.AlbumArtists;
+            return albumArtists == null ? 0 : albumArtists.Count;
+        }
+
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(AlbumArtistRenderer), albumArtists[index]);
+        }
 
         public override ServerObject GetMetadata()
         {
-            // set the container metadata
             return new GenericContainer(this.ObjectData.ToString());
         }
 
-        public override void GetChildren(int startIndex, int count, out int totalMatches)
+    }
+
+
+    [ContainerRenderer(ContainerType.Artist)]
+    public class AlbumArtistRenderer : ContainerRenderer
+    {
+
+        private PersistedAlbumArtist albumArtist;
+
+        public override int PrepareGetChildren(int startIndex, int count)
         {
+            albumArtist = this.ObjectData as PersistedAlbumArtist;
+            return albumArtist == null ? 0 : albumArtist.albums.Count;
+        }
 
-            if (this.ObjectData is String)
-            {
-                AlbumArtistlist a = GoogleMusicAPI.Instance.AlbumArtistlist;
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(AlbumRenderer), albumArtist.albums[index]);
+        }
 
-                if (a == null)
-                {
-                    totalMatches = 0;
-                    return;
-                }
-
-                totalMatches = a.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
-                {
-                    this.CreateChildObject<AlbumArtistContainer>(a[i]);
-                }
-            }
-            else if (this.ObjectData is AlbumArtist)
-            {
-                AlbumArtist aa = this.ObjectData as AlbumArtist;
-                Albumlist al = new Albumlist(aa.tracks);
-                Album alltracks = new Album();
-
-                alltracks.album = String.Format("All tracks by {0}", aa.albumArtist);
-                alltracks.tracks = aa.tracks;
-                al.Add(alltracks);
-
-                totalMatches = al.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
-                {
-                    this.CreateChildObject<AlbumArtistContainer>(al[i]);
-                }
-            }
-            else
-            {
-                Album a = this.ObjectData as Album;
-
-                totalMatches = a.tracks.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
-                {
-                    this.CreateChildObject<GMTrack>(a.tracks[i]);
-                }
-            }
-
+        public override ServerObject GetMetadata()
+        {
+            return new GenericContainer(this.ObjectData.ToString());
         }
 
     }

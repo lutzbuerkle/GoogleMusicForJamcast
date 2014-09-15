@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
 using System;
@@ -34,52 +33,50 @@ using System;
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    [ObjectRenderer(ServerObjectType.GenericContainer)]
-    public class PlaylistContainer : ContainerRenderer
+    public class PlaylistsRenderer : ContainerRenderer
     {
+
+        private PersistedPlaylists playlists;
+
+        public override int PrepareGetChildren(int startIndex, int count)
+        {
+            playlists = GoogleMusicAPI.Instance.Playlists;
+            return playlists == null ? 0 : playlists.Count;
+        }
+
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(PlaylistRenderer), playlists[index]);
+        }
 
         public override ServerObject GetMetadata()
         {
-            // set the container metadata
             return new GenericContainer(this.ObjectData.ToString());
         }
 
-        public override void GetChildren(int startIndex, int count, out int totalMatches)
+    }
+
+
+    [ContainerRenderer(ContainerType.Playlist)]
+    public class PlaylistRenderer : ContainerRenderer
+    {
+
+        private PersistedPlaylist playlist;
+
+        public override int PrepareGetChildren(int startIndex, int count)
         {
+            playlist = this.ObjectData as PersistedPlaylist;
+            return playlist == null ? 0 : playlist.tracks.Count;
+        }
 
-            if (this.ObjectData is String)
-            {
-                Playlists p = GoogleMusicAPI.Instance.Playlists;
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(GMTrack), playlist.tracks[index]);
+        }
 
-                if (p == null)
-                {
-                    totalMatches = 0;
-                    return;
-                }
-
-                totalMatches = p.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
-                {
-                    this.CreateChildObject<PlaylistContainer>(p[i]);
-                }
-            }
-            else
-            {
-                Playlist p = this.ObjectData as Playlist;
-
-                totalMatches = p.tracks.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
-                {
-                    this.CreateChildObject<GMTrack>(p.tracks[i]);
-                }
-            }
-
+        public override ServerObject GetMetadata()
+        {
+            return new GenericContainer(this.ObjectData.ToString());
         }
 
     }

@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -26,43 +26,31 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
-using System;
 
 namespace Jamcast.Plugins.GoogleMusic {
 
-    [ObjectRenderer(ServerObjectType.Playlist)]
-    public class TrackContainer : ContainerRenderer
+    [ContainerRenderer(ContainerType.Playlist)]
+    public class TracklistRenderer : ContainerRenderer
     {
+
+        private PersistedTracklist tracks;
+
+        public override int PrepareGetChildren(int startIndex, int count)
+        {
+            tracks = GoogleMusicAPI.Instance.Tracks;
+            return tracks == null ? 0 : tracks.Count;
+        }
+
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(GMTrack), tracks[index]);
+        }
 
         public override ServerObject GetMetadata()
         {
-            // set the container metadata
             return new GenericContainer(this.ObjectData.ToString());
-        }
-
-        public override void GetChildren(int startIndex, int count, out int totalMatches)
-        {
-
-            Tracklist t = GoogleMusicAPI.Instance.Tracklist;
-
-            if (t == null)
-            {
-                totalMatches = 0;
-                return;
-            }
-
-            totalMatches = t.Count;
-
-            count = Math.Min(count, totalMatches - startIndex);
-
-            for (int i = startIndex; i < startIndex + count; i++)
-            {
-                this.CreateChildObject<GMTrack>(t[i]);
-            }
-
         }
 
     }

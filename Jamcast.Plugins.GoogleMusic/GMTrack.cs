@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -29,42 +29,40 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
-using System.Text.RegularExpressions;
+using System;
 
 namespace Jamcast.Plugins.GoogleMusic {
 
-    [ObjectRenderer(ServerObjectType.Track)]
     public class GMTrack : ObjectRenderer
     {
-        private static readonly Regex _regex = new Regex(@"^(?<URL>.+)=", RegexOptions.Compiled);
-
         public override ServerObject GetMetadata()
         {
-            Track t = this.ObjectData as Track;
-            string[] contextData = new string[] { t.id };
+            AudioItem track;
+            PersistedTrack tt = this.ObjectData as PersistedTrack;
 
-            AudioItem track = new AudioItem(new MediaServerLocation(typeof(TrackHandler), contextData), MediaFormats.MP3);
-            track.Title = t.title;
-            track.Genre = t.genre;
-            track.AlbumArtist = t.albumArtistUnified;
-            if (t.artistUnified != null)
-                track.Artists.Add(t.artistUnified);
-            track.Album = t.album;
-            track.TrackNumber = t.track;
-            track.Seconds = t.durationMillis / 1000;
-            if (t.composer != null)
-                track.Composers.Add(t.composer);
-            if (t.albumArtRef != null)
-                if (t.albumArtRef.Count > 0)
-                {
-                    string albumArtUrl;
-                    Match match = _regex.Match(t.albumArtRef[0].url);
-                    if (match.Success)
-                        albumArtUrl = match.Groups["URL"].Value;
-                    else
-                        albumArtUrl = t.albumArtRef[0].url;
+            if (tt != null)
+            {
+                Track t = tt.track;
+                string albumArtUrl = GoogleMusicAPI.Instance.GetAlbumArtUrl(t);
+
+                track = new AudioItem(new MediaServerLocation(typeof(TrackHandler), new string[] { t.id }), MediaFormats.MP3);
+                track.Title = t.title;
+                track.Genre = t.genre;
+                track.AlbumArtist = t.albumArtistUnified;
+                if (t.artistUnified != null)
+                    track.Artists.Add(t.artistUnified);
+                track.Album = t.album;
+                track.TrackNumber = t.track;
+                track.Seconds = t.durationMillis / 1000;
+                if (t.composer != null)
+                    track.Composers.Add(t.composer);
+                if (!String.IsNullOrEmpty(albumArtUrl))
                     track.AlbumArt = new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG);
-                }
+            }
+            else
+            {
+                track = null;
+            }
 
             return track;
 

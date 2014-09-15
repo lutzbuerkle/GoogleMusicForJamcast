@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2013, Lutz Bürkle
+Copyright (c) 2014, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -26,7 +26,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 
-using GoogleMusic;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
 using System;
@@ -34,52 +33,68 @@ using System;
 namespace Jamcast.Plugins.GoogleMusic
 {
 
-    [ObjectRenderer(ServerObjectType.GenericContainer)]
-    public class AlbumContainer : ContainerRenderer
+    public class AlbumlistRenderer : ContainerRenderer
     {
+
+        private PersistedAlbumlist albums;
+
+        public override int PrepareGetChildren(int startIndex, int count)
+        {
+            albums = GoogleMusicAPI.Instance.Albums;
+            return albums == null ? 0 : albums.Count;
+        }
+
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(AlbumRenderer), albums[index]);
+        }
 
         public override ServerObject GetMetadata()
         {
-            // set the container metadata
             return new GenericContainer(this.ObjectData.ToString());
         }
 
-        public override void GetChildren(int startIndex, int count, out int totalMatches)
+    }
+
+
+    [ContainerRenderer(ContainerType.Album)]
+    public class AlbumRenderer : ContainerRenderer
+    {
+
+        private PersistedAlbum album;
+
+        public override int PrepareGetChildren(int startIndex, int count)
         {
+            album = this.ObjectData as PersistedAlbum;
+            return album == null ? 0 : album.tracks.Count;
+        }
 
-            if (this.ObjectData is String)
+        public override ObjectRenderInfo GetChildAt(int index)
+        {
+            return new ObjectRenderInfo(typeof(GMTrack), album.tracks[index]);
+        }
+
+        public override ServerObject GetMetadata()
+        {
+            album = this.ObjectData as PersistedAlbum;
+
+            if (album == null)
             {
-                Albumlist a = GoogleMusicAPI.Instance.Albumlist;
-
-                if (a == null)
-                {
-                    totalMatches = 0;
-                    return;
-                }
-
-                totalMatches = a.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
-                {
-                    this.CreateChildObject<AlbumContainer>(a[i]);
-                }
+                return new GenericContainer(this.ObjectData.ToString());
             }
             else
             {
-                Album a = this.ObjectData as Album;
+                string albumArtUrl = album.albumArtUrl;
 
-                totalMatches = a.tracks.Count;
-
-                count = Math.Min(count, totalMatches - startIndex);
-
-                for (int i = startIndex; i < startIndex + count; i++)
+                if (String.IsNullOrEmpty(albumArtUrl))
                 {
-                    this.CreateChildObject<GMTrack>(a.tracks[i]);
+                    return new AlbumContainer(album.album, album.albumArtist, null);
+                }
+                else
+                {
+                    return new AlbumContainer(album.album, album.albumArtist, new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG));
                 }
             }
-
         }
 
     }
