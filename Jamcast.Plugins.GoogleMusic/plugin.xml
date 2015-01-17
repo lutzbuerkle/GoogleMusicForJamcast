@@ -2,9 +2,9 @@
 <plugin xmlns="http://sdstechnologies.com/jamcast/plugin/manifest/2.0">
   <providerID>{553A4801-A2D7-49C6-A78E-9847290D381E}</providerID>
   <name>Google Music</name>
-  <description>Google Music browse and playback for Jamcast.</description>
+  <description>Listen to music from your Google Play Music library.</description>
   <publisherName>Lutz Bürkle, Stuttgart, Germany</publisherName>
-  <publisherUrl>http://www.lutz-buerkle.de</publisherUrl>
+  <publisherUrl>https://googlemusicforjamcast.codeplex.com/</publisherUrl>
   <iconResourceName>Jamcast.Plugins.GoogleMusic.Icon.png</iconResourceName>
   <assemblyFileName>Jamcast.Plugins.GoogleMusic.dll</assemblyFileName>
   <files>

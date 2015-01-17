@@ -35,7 +35,7 @@ using System.Linq;
 using System.Net;
 using System.ServiceModel;
 using System.Text.RegularExpressions;
-using System.Threading;
+using System.Timers;
 
 namespace Jamcast.Plugins.GoogleMusic
 {
@@ -47,6 +47,7 @@ namespace Jamcast.Plugins.GoogleMusic
         internal const int LOGIN_BUSY = -1;
 
         private const int DELAY_CONN_ATTEMPTS = 10000;
+        private const int UPDATE_INTERVAL = 300;
 
         private static readonly Regex _regex = new Regex(@"^(?<URL>.+)=", RegexOptions.Compiled);
 
@@ -58,6 +59,8 @@ namespace Jamcast.Plugins.GoogleMusic
         private PersistedPlaylists _playlists;
         private PersistedAlbumlist _albums;
         private PersistedAlbumArtistlist _albumArtists;
+        private Timer _timer;
+        private ulong _ticks;
         private ulong _deviceId;
 
         internal delegate void OnLoginDelegate(int status);
@@ -81,6 +84,8 @@ namespace Jamcast.Plugins.GoogleMusic
             _playlists = new PersistedPlaylists();
             _albums = new PersistedAlbumlist();
             _albumArtists = new PersistedAlbumArtistlist();
+            _timer = new Timer(1000);
+            _timer.Elapsed += new ElapsedEventHandler(OnTimedEvent); ;
         }
 
         internal static event OnLoginDelegate OnLogin;
@@ -108,7 +113,7 @@ namespace Jamcast.Plugins.GoogleMusic
             {
                 Log.Debug(Plugin.LOG_MODULE, "Checking for internet connection", null);
                 if (connected = CheckForInternetConnection()) break;
-                Thread.Sleep(DELAY_CONN_ATTEMPTS);
+                System.Threading.Thread.Sleep(DELAY_CONN_ATTEMPTS);
             }
 
             if (!connected)
@@ -186,6 +191,8 @@ namespace Jamcast.Plugins.GoogleMusic
                 {
                     Log.Info(Plugin.LOG_MODULE, String.Format("Failed to update playlists from Google Music"), null);
                 }
+
+                _timer.Enabled = true;
             }
             else
             {
@@ -193,8 +200,41 @@ namespace Jamcast.Plugins.GoogleMusic
             }
         }
 
+        private void OnTimedEvent(object source, ElapsedEventArgs e)
+        {
+            if (++_ticks % UPDATE_INTERVAL == 0)
+            {
+                if (_MobileClient.LoginStatus && CheckForInternetConnection())
+                {
+                    if (UpdateTracks(ref _tracklist))
+                    {
+                        _tracklist.Sort();
+
+                        _albums = new PersistedAlbumlist(_tracklist);
+
+                        _albumArtists = new PersistedAlbumArtistlist(_albums);
+                        foreach (PersistedAlbumArtist albumArtist in _albumArtists)
+                        {
+                            PersistedAlbum alltracks = new PersistedAlbum();
+                            alltracks.album = String.Format("All tracks by {0}", albumArtist);
+                            alltracks.albumArtist = albumArtist.albumArtist;
+                            alltracks.albumArtistSort = albumArtist.albumArtistSort;
+                            alltracks.tracks = new PersistedTracklist();
+                            foreach (PersistedAlbum album in albumArtist.albums)
+                            {
+                                alltracks.tracks.AddRange(album.tracks);
+                            }
+                            alltracks.tracks.Sort();
+                            albumArtist.albums.Add(alltracks);
+                        }
+                    }
+                }
+            }
+        }
+
         internal void Logout()
         {
+            _timer.Enabled = false;
             _MobileClient.Logout();
             _WebClient.Logout();
             _instance = new GoogleMusicAPI();
@@ -213,6 +253,41 @@ namespace Jamcast.Plugins.GoogleMusic
 
         internal PersistedAlbumArtistlist AlbumArtists { get { return _albumArtists; } }
 
+        private bool UpdateTracks(ref PersistedTracklist tracksInput)
+        {
+            bool updated = false;
+
+            if (tracksInput != null)
+            {
+                Tracklist newTracks = _MobileClient.GetTracks(tracksInput.lastUpdatedTimestamp);
+
+                if (newTracks != null)
+                {
+                    Log.Debug(Plugin.LOG_MODULE, String.Format("{0} updated tracks obtained from Google Music", newTracks.Count), null);
+
+                    if (newTracks.Count > 0)
+                    {
+                        PersistedTracklist tracks = new PersistedTracklist(tracksInput);
+                        foreach (Track newTrack in newTracks)
+                        {
+                            PersistedTrack removeTrack = tracks[newTrack.id];
+                            if (removeTrack != null)
+                                tracks.Remove(removeTrack);
+                            if (newTrack.deleted == false)
+                                tracks.Add(new PersistedTrack(newTrack));
+                        }
+                        tracksInput = tracks;
+                        updated = true;
+                    }
+
+                    tracksInput.lastUpdatedTimestamp = DateTime.Now;
+                }
+            }
+
+            return updated;
+        }
+
+        
         internal string GetStreamUrl(string song_id)
         {
             StreamUrl url;

@@ -99,6 +99,7 @@ namespace Jamcast.Plugins.GoogleMusic
         internal PersistedTracklist(IEnumerable<PersistedTrack> tracks) : this()
         {
             this.AddRange(tracks);
+            if (tracks is PersistedTracklist) lastUpdatedTimestamp = (tracks as PersistedTracklist).lastUpdatedTimestamp;
         }
 
         internal PersistedTracklist(IEnumerable<Track> tracks) : this()
@@ -107,7 +108,7 @@ namespace Jamcast.Plugins.GoogleMusic
             {
                 this.Add(new PersistedTrack(track));
             }
-            if (tracks is Tracklist) timestamp = (tracks as Tracklist).timestamp;
+            if (tracks is Tracklist) lastUpdatedTimestamp = (tracks as Tracklist).lastUpdatedTimestamp;
         }
 
         internal PersistedTrack this[string id]
@@ -115,7 +116,7 @@ namespace Jamcast.Plugins.GoogleMusic
             get { return this.Find(t => t.id == id); }
         }
 
-        internal DateTime timestamp { get; set; }
+        internal DateTime lastUpdatedTimestamp { get; set; }
 
         internal void SortByArtist() { this.Sort(PersistedTrack.CompareByArtist); }
         internal void SortByAlbumArtist() { this.Sort(PersistedTrack.CompareByAlbumArtist); }
@@ -204,7 +205,7 @@ namespace Jamcast.Plugins.GoogleMusic
             {
                 this.Add(new PersistedPlaylist(playlist));
             }
-            timestamp = playlists.timestamp;
+            lastUpdatedTimestamp = playlists.lastUpdatedTimestamp;
         }
 
         internal PersistedPlaylist this[string id]
@@ -212,7 +213,7 @@ namespace Jamcast.Plugins.GoogleMusic
             get { return this.Find(t => t.id == id); }
         }
 
-        internal DateTime timestamp { get; set; }
+        internal DateTime lastUpdatedTimestamp { get; set; }
     }
 
     #endregion
