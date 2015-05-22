@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2014, Lutz Bürkle
+Copyright (c) 2015, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using GoogleMusic;
 using Jamcast.Extensibility;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -41,10 +42,10 @@ namespace Jamcast.Plugins.GoogleMusic
 {
     internal class GoogleMusicAPI
     {
-        internal const int LOGIN_SUCCESS = 0;
-        internal const int LOGIN_FAILURE__NO_INTERNET_CONNECTION = 1;
-        internal const int LOGIN_FAILURE__WRONG_CREDENTIALS = 2;
-        internal const int LOGIN_BUSY = -1;
+        public const int LOGIN_SUCCESS = 0;
+        public const int LOGIN_FAILURE__NO_INTERNET_CONNECTION = 1;
+        public const int LOGIN_FAILURE__WRONG_CREDENTIALS = 2;
+        public const int LOGIN_BUSY = -1;
 
         private const int DELAY_CONN_ATTEMPTS = 10000;
         private const int UPDATE_INTERVAL = 300;
@@ -63,7 +64,7 @@ namespace Jamcast.Plugins.GoogleMusic
         private ulong _ticks;
         private ulong _deviceId;
 
-        internal delegate void OnLoginDelegate(int status);
+        public delegate void OnLoginDelegate(int status);
 
         static GoogleMusicAPI()
         {
@@ -88,11 +89,11 @@ namespace Jamcast.Plugins.GoogleMusic
             _timer.Elapsed += new ElapsedEventHandler(OnTimedEvent); ;
         }
 
-        internal static event OnLoginDelegate OnLogin;
+        public static event OnLoginDelegate OnLogin;
 
-        internal static WebProxy Proxy { get; set; }
+        public static WebProxy Proxy { get; set; }
 
-        internal static GoogleMusicAPI Instance
+        public static GoogleMusicAPI Instance
         { 
             get
             {
@@ -101,7 +102,7 @@ namespace Jamcast.Plugins.GoogleMusic
             } 
         }
 
-        internal int Login(string login, string passwd, int numConnAttempts = 1)
+        public int Login(string login, string passwd, int numConnAttempts = 1)
         {
             int status = LOGIN_BUSY;
             bool connected = false;
@@ -139,7 +140,7 @@ namespace Jamcast.Plugins.GoogleMusic
             return status;
         }
 
-        internal void GetMusicData()
+        public void GetMusicData()
         {
             if (_MobileClient.LoginStatus && CheckForInternetConnection())
             {
@@ -180,7 +181,7 @@ namespace Jamcast.Plugins.GoogleMusic
                     Log.Info(Plugin.LOG_MODULE, String.Format("Failed to update tracklist from Google Music"), null);
                 }
 
-                Playlists playlists = _MobileClient.GetPlaylists();
+                Playlists playlists = _MobileClient.GetAllPlaylists();
                 if (playlists != null)
                 {
                     _playlists = new PersistedPlaylists(playlists);
@@ -228,11 +229,13 @@ namespace Jamcast.Plugins.GoogleMusic
                             albumArtist.albums.Add(alltracks);
                         }
                     }
+
+                    UpdatePlaylists(ref _playlists);
                 }
             }
         }
 
-        internal void Logout()
+        public void Logout()
         {
             _timer.Enabled = false;
             _MobileClient.Logout();
@@ -241,17 +244,18 @@ namespace Jamcast.Plugins.GoogleMusic
             Log.Debug(Plugin.LOG_MODULE, "Logged out of Google Music", null);
         }
 
-        internal bool IsLoggingIn { get; private set; }
+        public bool IsLoggingIn { get; private set; }
 
-        internal bool LoggedIn { get { return _MobileClient.LoginStatus; } }
+        public bool LoggedIn { get { return _MobileClient.LoginStatus; } }
 
-        internal PersistedTracklist Tracks { get { return _tracklist; } }
+        public PersistedTracklist Tracks { get { return _tracklist; } }
 
-        internal PersistedPlaylists Playlists { get { return _playlists; } }
+        public PersistedPlaylists Playlists { get { return _playlists; } }
 
-        internal PersistedAlbumlist Albums { get { return _albums; } }
+        public PersistedAlbumlist Albums { get { return _albums; } }
 
-        internal PersistedAlbumArtistlist AlbumArtists { get { return _albumArtists; } }
+        public PersistedAlbumArtistlist AlbumArtists { get { return _albumArtists; } }
+
 
         private bool UpdateTracks(ref PersistedTracklist tracksInput)
         {
@@ -287,14 +291,35 @@ namespace Jamcast.Plugins.GoogleMusic
             return updated;
         }
 
-        
-        internal string GetStreamUrl(string song_id)
+
+        private bool UpdatePlaylists(ref PersistedPlaylists playlistsInput)
+        {
+            bool updated = false;
+
+            Playlists playlists = _MobileClient.GetAllPlaylists();
+            if (playlists != null)
+            {
+                playlists.Sort();
+                playlistsInput = new PersistedPlaylists(playlists);
+                Log.Debug(Plugin.LOG_MODULE, String.Format("Playlists updated. {0} playlists obtained from Google Music", playlists.Count), null);
+                updated = true;
+            }
+
+            return updated;
+        }
+
+
+        public string GetStreamUrl(string song_id)
         {
             StreamUrl url;
 
             if (_deviceId == 0)
             {
-                url = _WebClient.GetStreamUrl(song_id);
+                List<StreamUrl> urls = _WebClient.GetStreamUrl(song_id);
+                if (urls != null && urls.Count == 1)
+                    url = urls.First();
+                else
+                    url = null;
             }
             else
             {
@@ -305,7 +330,7 @@ namespace Jamcast.Plugins.GoogleMusic
             return (url == null) ? null : url.url;
         }
 
-        internal string GetAlbumArtUrl(Track track)
+        public string GetAlbumArtUrl(Track track)
         {
             string albumArtUrl = null;
 
@@ -321,22 +346,22 @@ namespace Jamcast.Plugins.GoogleMusic
             return albumArtUrl;
         }
 
-        internal PersistedTrack GetTrack(string id)
+        public PersistedTrack GetTrack(string id)
         {
             return _tracklist[id];
         }
 
-        internal PersistedPlaylist GetPlaylist(string id)
+        public PersistedPlaylist GetPlaylist(string id)
         {
             return _playlists[id];
         }
 
-        internal PersistedAlbum GetAlbum(string id)
+        public PersistedAlbum GetAlbum(string id)
         {
             return _albums[id];
         }
 
-        internal PersistedAlbumArtist GetAlbumArtist(string id)
+        public PersistedAlbumArtist GetAlbumArtist(string id)
         {
             return _albumArtists[id];
         }
@@ -350,7 +375,7 @@ namespace Jamcast.Plugins.GoogleMusic
             {
                 string id;
 
-                var devices = settings.devices.FindAll(device => device.type.ToUpperInvariant() == "PHONE")
+                var devices = settings.devices.FindAll(device => device.type == "PHONE" || device.type == "IOS")
                                       .OrderByDescending(device => device.lastUsed).ToArray();
 
                 if (devices.Length > 0)

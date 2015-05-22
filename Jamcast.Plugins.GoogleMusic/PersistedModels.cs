@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2014, Lutz Bürkle
+Copyright (c) 2015, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -47,17 +47,17 @@ namespace Jamcast.Plugins.GoogleMusic
     { 
         private Track _track;
 
-        internal PersistedTrack() { }
+        public PersistedTrack() { }
 
-        internal PersistedTrack(Track track) : this()
+        public PersistedTrack(Track track) : this()
         {
             id = track.id;
             _track = track;
         }
 
         [DataMember(Order = 1)]
-        internal string id { get; set; }
-        internal Track track
+        public string id { get; set; }
+        public Track track
         {
             get
             {
@@ -68,6 +68,10 @@ namespace Jamcast.Plugins.GoogleMusic
                 }
 
                 return _track;
+            }
+            protected set
+            {
+                _track = value;
             }
         }
 
@@ -86,23 +90,23 @@ namespace Jamcast.Plugins.GoogleMusic
             return track.CompareTo(other.track);
         }
 
-        internal static Comparison<PersistedTrack> CompareByArtist = delegate(PersistedTrack t1, PersistedTrack t2) { return Track.CompareByArtist(t1.track, t2.track); };
-        internal static Comparison<PersistedTrack> CompareByAlbumArtist = delegate(PersistedTrack t1, PersistedTrack t2) { return Track.CompareByAlbumArtist(t1.track, t2.track); };
-        internal static Comparison<PersistedTrack> CompareByAlbum = delegate(PersistedTrack t1, PersistedTrack t2) { return Track.CompareByAlbum(t1.track, t2.track); };
+        public static Comparison<PersistedTrack> CompareByArtist = delegate(PersistedTrack t1, PersistedTrack t2) { return Track.CompareByArtist(t1.track, t2.track); };
+        public static Comparison<PersistedTrack> CompareByAlbumArtist = delegate(PersistedTrack t1, PersistedTrack t2) { return Track.CompareByAlbumArtist(t1.track, t2.track); };
+        public static Comparison<PersistedTrack> CompareByAlbum = delegate(PersistedTrack t1, PersistedTrack t2) { return Track.CompareByAlbum(t1.track, t2.track); };
     }
 
 
     internal class PersistedTracklist : List<PersistedTrack>
     {
-        internal PersistedTracklist() : base() { }
+        public PersistedTracklist() : base() { }
 
-        internal PersistedTracklist(IEnumerable<PersistedTrack> tracks) : this()
+        public PersistedTracklist(IEnumerable<PersistedTrack> tracks) : this()
         {
             this.AddRange(tracks);
             if (tracks is PersistedTracklist) lastUpdatedTimestamp = (tracks as PersistedTracklist).lastUpdatedTimestamp;
         }
 
-        internal PersistedTracklist(IEnumerable<Track> tracks) : this()
+        public PersistedTracklist(IEnumerable<Track> tracks) : this()
         {
             foreach (Track track in tracks)
             {
@@ -111,47 +115,94 @@ namespace Jamcast.Plugins.GoogleMusic
             if (tracks is Tracklist) lastUpdatedTimestamp = (tracks as Tracklist).lastUpdatedTimestamp;
         }
 
-        internal PersistedTrack this[string id]
+        public PersistedTrack this[string id]
         {
             get { return this.Find(t => t.id == id); }
         }
 
-        internal DateTime lastUpdatedTimestamp { get; set; }
+        public DateTime lastUpdatedTimestamp { get; set; }
 
-        internal void SortByArtist() { this.Sort(PersistedTrack.CompareByArtist); }
-        internal void SortByAlbumArtist() { this.Sort(PersistedTrack.CompareByAlbumArtist); }
-        internal void SortByAlbum() { this.Sort(PersistedTrack.CompareByAlbum); }
+        public void SortByArtist() { this.Sort(PersistedTrack.CompareByArtist); }
+        public void SortByAlbumArtist() { this.Sort(PersistedTrack.CompareByAlbumArtist); }
+        public void SortByAlbum() { this.Sort(PersistedTrack.CompareByAlbum); }
     }
 
     #endregion
 
+
     #region Playlist
+
+    [DataContract]
+    internal class PersistedPlaylistEntry : PersistedTrack, IComparable<PersistedPlaylistEntry>
+    {
+        public PersistedPlaylistEntry(PlaylistEntry entry) : base()
+        {
+            if (entry.playlistId == null)
+                id = entry.trackId;
+            else
+                id = entry.id;
+
+            if (entry.track == null)
+            {
+                PersistedTrack track = GoogleMusicAPI.Instance.GetTrack(entry.trackId);
+                if (track != null)
+                    base.track = track.track;
+                else
+                    base.track = null;
+            }
+            else
+            {
+                base.track = entry.track;
+            }
+
+            absolutePosition = entry.absolutePosition;
+        }
+
+        public long absolutePosition { get; protected set; }
+
+        public int CompareTo(PersistedPlaylistEntry other)
+        {
+            return absolutePosition.CompareTo(other.absolutePosition);
+        }
+    }
+
+
+    internal class PersistedPlaylistEntrylist : List<PersistedPlaylistEntry>
+    {
+        public PersistedPlaylistEntrylist() : base() { }
+
+        public PersistedPlaylistEntrylist(IEnumerable<PersistedPlaylistEntry> entries) : this()
+        {
+            this.AddRange(entries);
+        }
+
+        public PersistedPlaylistEntry this[string id]
+        {
+            get { return this.Find(t => t.id == id); }
+        }
+    }
+
 
     [DataContract]
     internal class PersistedPlaylist : IPersisted, IComparable<PersistedPlaylist>
     {
         private string _name;
-        private PersistedTracklist _tracks;
+        private PersistedPlaylistEntrylist _entries;
 
-        internal PersistedPlaylist() { }
+        public PersistedPlaylist() { }
 
-        internal PersistedPlaylist(Playlist playlist) : this()
+        public PersistedPlaylist(Playlist playlist) : this()
         {
             id = playlist.id;
             _name = playlist.name;
-            _tracks = new PersistedTracklist();
-            foreach (Track track in playlist.tracks)
-            {
-                if (track.ToString() == null)
-                    _tracks.Add(GoogleMusicAPI.Instance.GetTrack(track.id));
-                else
-                    _tracks.Add(new PersistedTrack(track));
-            }
+            _entries = new PersistedPlaylistEntrylist();
+            foreach (PlaylistEntry entry in playlist.entries)
+                _entries.Add(new PersistedPlaylistEntry(entry));
         }
 
         [DataMember(Order = 1)]
-        internal string id { get; set; }
-        internal string name
+        public string id { get; set; }
+        public string name
         {
             get
             {
@@ -159,12 +210,16 @@ namespace Jamcast.Plugins.GoogleMusic
                 return _name;
             } 
         }
-        internal PersistedTracklist tracks
+        public PersistedPlaylistEntrylist tracks
         {
             get
             {
-                if (_tracks == null) Refresh();
-                return _tracks;
+                if (_entries == null) Refresh();
+                return _entries;
+            }
+            set
+            {
+                _entries = value;
             }
         }
 
@@ -189,7 +244,7 @@ namespace Jamcast.Plugins.GoogleMusic
             if (playlist != null)
             {
                 _name = playlist.name;
-                _tracks = playlist.tracks;
+                _entries = playlist.tracks;
             }
         }
     }
@@ -197,9 +252,9 @@ namespace Jamcast.Plugins.GoogleMusic
 
     internal class PersistedPlaylists : List<PersistedPlaylist>
     {
-        internal PersistedPlaylists() : base() { }
+        public PersistedPlaylists() : base() { }
 
-        internal PersistedPlaylists(Playlists playlists) : this()
+        public PersistedPlaylists(Playlists playlists) : this()
         {
             foreach (Playlist playlist in playlists)
             {
@@ -208,15 +263,22 @@ namespace Jamcast.Plugins.GoogleMusic
             lastUpdatedTimestamp = playlists.lastUpdatedTimestamp;
         }
 
-        internal PersistedPlaylist this[string id]
+        public PersistedPlaylists(IEnumerable<PersistedPlaylist> playlists) : this()
+        {
+            this.AddRange(playlists);
+            if (playlists is PersistedPlaylists) lastUpdatedTimestamp = (playlists as PersistedPlaylists).lastUpdatedTimestamp;
+        }
+
+        public PersistedPlaylist this[string id]
         {
             get { return this.Find(t => t.id == id); }
         }
 
-        internal DateTime lastUpdatedTimestamp { get; set; }
+        public DateTime lastUpdatedTimestamp { get; set; }
     }
 
     #endregion
+
 
     #region Album
 
@@ -229,10 +291,10 @@ namespace Jamcast.Plugins.GoogleMusic
         private string _albumArtistSort;
         private PersistedTracklist _tracks;
 
-        internal PersistedAlbum() { }
+        public PersistedAlbum() { }
 
         [DataMember(Order = 1)]
-        internal string id
+        public string id
         {
             get {
                 if (_id == null)
@@ -247,26 +309,26 @@ namespace Jamcast.Plugins.GoogleMusic
             }
             set { _id = value; }
         }
-        internal string album
+        public string album
         {
             get { _album = _album == null && tracks != null && tracks.Count > 0 ? tracks.First().track.album : _album; return _album; }
             set { _album = value; }
         }
-        internal string albumArtist
+        public string albumArtist
         {
             get { _albumArtist = _albumArtist == null && tracks != null && tracks.Count > 0 ? tracks.First().track.albumArtist : _albumArtist; return _albumArtist; }
             set { _albumArtist = value; }
         }
-        internal string albumArtistSort
+        public string albumArtistSort
         {
             get { _albumArtistSort = _albumArtistSort == null && tracks != null && tracks.Count > 0 ? tracks.First().track.albumArtistNorm : _albumArtistSort; return _albumArtistSort; }
             set { _albumArtistSort = value; }
         }
-        internal string albumArtUrl
+        public string albumArtUrl
         {
             get { return tracks != null && tracks.Count > 0 ? GoogleMusicAPI.Instance.GetAlbumArtUrl(tracks.First().track) : null; }
         }
-        internal PersistedTracklist tracks
+        public PersistedTracklist tracks
         {
             get
             {
@@ -295,7 +357,7 @@ namespace Jamcast.Plugins.GoogleMusic
             return result;
         }
 
-        internal static Comparison<PersistedAlbum> CompareByAlbumArtist = delegate(PersistedAlbum a1, PersistedAlbum a2) 
+        public static Comparison<PersistedAlbum> CompareByAlbumArtist = delegate(PersistedAlbum a1, PersistedAlbum a2) 
         {
             int result = String.Compare(a1.albumArtistSort, a2.albumArtistSort, CultureInfo.CurrentCulture, CompareOptions.IgnoreSymbols);
             if (result == 0)
@@ -320,9 +382,9 @@ namespace Jamcast.Plugins.GoogleMusic
 
     internal class PersistedAlbumlist : List<PersistedAlbum>
     {
-        internal PersistedAlbumlist() : base() { }
+        public PersistedAlbumlist() : base() { }
 
-        internal PersistedAlbumlist(IEnumerable<PersistedTrack> tracks) : this()
+        public PersistedAlbumlist(IEnumerable<PersistedTrack> tracks) : this()
         {
             List<PersistedAlbum> albums = tracks.OrderBy(track => track, new Comparer<PersistedTrack>(PersistedTrack.CompareByAlbum))
                                                 .GroupBy(track => new { track.track.album, track.track.albumArtistNorm })
@@ -330,20 +392,21 @@ namespace Jamcast.Plugins.GoogleMusic
             this.AddRange(albums);
         }
 
-        internal PersistedAlbumlist(IEnumerable<PersistedAlbum> albums) : this()
+        public PersistedAlbumlist(IEnumerable<PersistedAlbum> albums) : this()
         {
             this.AddRange(albums);
         }
 
-        internal PersistedAlbum this[string id]
+        public PersistedAlbum this[string id]
         {
             get { return this.Find(a => a.id == id); }
         }
 
-        internal void SortByAlbumArtist() { this.Sort(PersistedAlbum.CompareByAlbumArtist); }
+        public void SortByAlbumArtist() { this.Sort(PersistedAlbum.CompareByAlbumArtist); }
     }
 
     #endregion
+
 
     #region AlbumArtist
 
@@ -355,10 +418,10 @@ namespace Jamcast.Plugins.GoogleMusic
         private string _albumArtistSort;
         private PersistedAlbumlist _albums;
 
-        internal PersistedAlbumArtist() { }
+        public PersistedAlbumArtist() { }
 
         [DataMember(Order = 1)]
-        internal string id
+        public string id
         {
             get {
                 if (_id == null)
@@ -373,17 +436,17 @@ namespace Jamcast.Plugins.GoogleMusic
             }
             set { _id = value; }
         }
-        internal string albumArtist
+        public string albumArtist
         {
             get { _albumArtist = _albumArtist == null && albums != null && albums.Count > 0 ? albums.First().albumArtist : _albumArtist; return _albumArtist; }
             set { _albumArtist = value; }
         }
-        internal string albumArtistSort
+        public string albumArtistSort
         {
             get { _albumArtistSort = _albumArtistSort == null && albums != null && albums.Count > 0 ? albums.First().albumArtistSort : _albumArtistSort; return _albumArtistSort; }
             set { _albumArtistSort = value; }
         }
-        internal PersistedAlbumlist albums
+        public PersistedAlbumlist albums
         {
             get
             {
@@ -418,9 +481,9 @@ namespace Jamcast.Plugins.GoogleMusic
 
     internal class PersistedAlbumArtistlist : List<PersistedAlbumArtist>
     {
-        internal PersistedAlbumArtistlist() : base() { }
+        public PersistedAlbumArtistlist() : base() { }
 
-        internal PersistedAlbumArtistlist(IEnumerable<PersistedAlbum> albums) : this()
+        public PersistedAlbumArtistlist(IEnumerable<PersistedAlbum> albums) : this()
         {
             List<PersistedAlbumArtist> albumArtists = albums.OrderBy(album => album, new Comparer<PersistedAlbum>(PersistedAlbum.CompareByAlbumArtist))
                                                             .GroupBy(album => album.albumArtistSort)
@@ -428,13 +491,14 @@ namespace Jamcast.Plugins.GoogleMusic
             this.AddRange(albumArtists);
         }
 
-        internal PersistedAlbumArtist this[string id]
+        public PersistedAlbumArtist this[string id]
         {
             get { return this.Find(aa => aa.id == id); }
         }
     }
 
 #endregion
+
 
     internal class Comparer<T> : IComparer<T>
     {

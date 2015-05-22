@@ -27,6 +27,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 using GoogleMusic;
+using Jamcast.Extensibility;
 using Jamcast.Extensibility.ContentDirectory;
 using Jamcast.Extensibility.Metadata;
 using System;
@@ -40,18 +41,22 @@ namespace Jamcast.Plugins.GoogleMusic {
             AudioItem track;
             PersistedTrack tt = this.ObjectData as PersistedTrack;
 
-            if (tt != null)
+            if (tt != null && tt.track != null)
             {
                 Track t = tt.track;
                 string albumArtUrl = GoogleMusicAPI.Instance.GetAlbumArtUrl(t);
 
                 track = new AudioItem(new MediaServerLocation(typeof(TrackHandler), new string[] { t.id }), MediaFormats.MP3);
-                track.Title = t.title;
-                track.Genre = t.genre;
-                track.AlbumArtist = t.albumArtistUnified;
+                if (t.title != null)
+                    track.Title = t.title;
+                if (t.genre != null)
+                    track.Genre = t.genre;
+                if (t.albumArtistUnified != null)
+                    track.AlbumArtist = t.albumArtistUnified;
                 if (t.artistUnified != null)
                     track.Artists.Add(t.artistUnified);
-                track.Album = t.album;
+                if (t.album != null)
+                    track.Album = t.album;
                 track.TrackNumber = t.track;
                 track.Seconds = t.durationMillis / 1000;
                 if (t.composer != null)
@@ -62,6 +67,7 @@ namespace Jamcast.Plugins.GoogleMusic {
             else
             {
                 track = null;
+                Log.Error(Plugin.LOG_MODULE, "No valid track data in GMTrack", new InvalidObjectDataException());
             }
 
             return track;
