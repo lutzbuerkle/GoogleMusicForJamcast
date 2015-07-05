@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2014, Lutz Bürkle
+Copyright (c) 2015, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -119,18 +119,14 @@ namespace Jamcast.Plugins.GoogleMusic.UI.ViewModel
                         this.LoginError = "No connection to the internet";
                     else
                         this.LoginError = "Google Music login failed";
-                    Configuration.Instance.Password = null;
                     return;
                 }
 
-                Configuration.Instance.Login = login;
-                Configuration.Instance.Password = passwd;
-                Configuration.Instance.Save();
                 this.OnLoginSuccess();
             }
             catch (Exception ex)
             {
-                Configuration.Instance.Password = null;                
+                Configuration.Instance.MasterToken = null;                
                 this.LoginError = ex.Message;
                 return;
             }

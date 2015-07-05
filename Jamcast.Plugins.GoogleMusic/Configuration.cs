@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2014, Lutz Bürkle
+Copyright (c) 2015, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -40,16 +40,17 @@ namespace Jamcast.Plugins.GoogleMusic
         internal const string CONFIGURATION_KEY = "GoogleMusicConfiguration";
 
         private static Configuration _instance;
-        private string _password;
+        private string _masterToken;
 
         private Configuration() { }
 
         public string Login { get; set; }
-        public string Password
+        public string MasterToken
         {
-            get { return Decrypt(_password); }
-            set { _password = Encrypt(value); }
+            get { return Decrypt(_masterToken); }
+            set { _masterToken = Encrypt(value); }
         }
+        public string DeviceId { get; set; }
 
         internal static Configuration Instance
         {

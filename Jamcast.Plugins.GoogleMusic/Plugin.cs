@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2014, Lutz Bürkle
+Copyright (c) 2015, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -28,7 +28,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 using Jamcast.Extensibility;
 using Jamcast.Extensibility.ContentDirectory;
-using Microsoft.Win32;
 using System;
 using System.ServiceModel;
 using System.Threading;
@@ -65,30 +64,7 @@ namespace Jamcast.Plugins.GoogleMusic
         public override bool Startup()
         {
             string login = Configuration.Instance.Login;
-            string passwd = Configuration.Instance.Password;
-
-            RegistryKey registryKey = Registry.LocalMachine.OpenSubKey("SOFTWARE\\Microsoft\\NET Framework Setup\\NDP\\v4\\Full");
-            if (registryKey == null)
-            {
-                Log.Error(Plugin.LOG_MODULE, "Jamcast Google Music plugin requires .NET 4 full framework.", new Exception("NET 4 full framework not installed"));
-                return false;
-            }
-            else
-            {
-                try
-                {
-                    if (registryKey.GetValue("Install".ToUpper()).ToString() != "1")
-                    {
-                        Log.Error(Plugin.LOG_MODULE, "Jamcast Google Music plugin requires .NET 4 full framework.", new Exception("NET 4 full framework not installed"));
-                        return false;
-                    }
-                }
-                catch(Exception error)
-                {
-                    Log.Error(Plugin.LOG_MODULE, "Jamcast Google Music plugin requires .NET 4 full framework.", error);
-                    return false;
-                }
-            }
+            string masterToken = Configuration.Instance.MasterToken;
 
             try
             {
@@ -108,7 +84,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
             Log.Info(Plugin.LOG_MODULE, "Google Music plugin initialized successfully.", null);
 
-            if (String.IsNullOrWhiteSpace(login) || String.IsNullOrWhiteSpace(passwd))
+            if (String.IsNullOrWhiteSpace(login) || String.IsNullOrWhiteSpace(masterToken))
             {
                 Log.Debug(Plugin.LOG_MODULE, "No valid login credentials available.", null);
             }
@@ -116,7 +92,7 @@ namespace Jamcast.Plugins.GoogleMusic
             {
                 ThreadPool.QueueUserWorkItem(x =>
                 {
-                    int status = GoogleMusicAPI.Instance.Login(login, passwd, MAX_CONN_ATTEMPTS);
+                    int status = GoogleMusicAPI.Instance.Login(MAX_CONN_ATTEMPTS);
                     if (status == GoogleMusicAPI.LOGIN_SUCCESS)
                     {
                         Log.Info(LOG_MODULE, "Logged into Google Music. Retrieving music data.", null);
@@ -130,8 +106,8 @@ namespace Jamcast.Plugins.GoogleMusic
                         }
                         else
                         {
-                            Configuration.Instance.Password = null;
-                            Log.Info(LOG_MODULE, String.Format("Google Music login failed for user {0}. Wrong email or password", Configuration.Instance.Login), null);
+                            Configuration.Instance.MasterToken = null;
+                            Log.Info(LOG_MODULE, String.Format("Google Music login failed for user {0}.", Configuration.Instance.Login), null);
                         }
                     }
                 });

@@ -1,5 +1,5 @@
 ﻿/*
-Copyright (c) 2014, Lutz Bürkle
+Copyright (c) 2015, Lutz Bürkle
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,7 @@ namespace Jamcast.Plugins.GoogleMusic.UI.ViewModel
 
         private void logOut(object param)
         {
-            Configuration.Instance.Password = null;            
+            Configuration.Instance.MasterToken = null;            
             Configuration.Instance.Save();
             if(this.OnLoggedOut != null)
                 this.OnLoggedOut();

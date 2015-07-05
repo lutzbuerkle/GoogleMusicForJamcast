@@ -29,8 +29,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 using GoogleMusic;
 using Jamcast.Extensibility;
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -42,10 +40,10 @@ namespace Jamcast.Plugins.GoogleMusic
 {
     internal class GoogleMusicAPI
     {
-        public const int LOGIN_SUCCESS = 0;
-        public const int LOGIN_FAILURE__NO_INTERNET_CONNECTION = 1;
-        public const int LOGIN_FAILURE__WRONG_CREDENTIALS = 2;
-        public const int LOGIN_BUSY = -1;
+        public const int LOGIN_BUSY = 0;
+        public const int LOGIN_SUCCESS = 1;
+        public const int LOGIN_FAILURE__NO_INTERNET_CONNECTION = -1;
+        public const int LOGIN_FAILURE__WRONG_CREDENTIALS = -2;
 
         private const int DELAY_CONN_ATTEMPTS = 10000;
         private const int UPDATE_INTERVAL = 300;
@@ -55,14 +53,15 @@ namespace Jamcast.Plugins.GoogleMusic
         private static GoogleMusicAPI _instance;
 
         private GoogleMusicMobileClient _MobileClient;
-        private GoogleMusicWebClient _WebClient;
         private PersistedTracklist _tracklist;
         private PersistedPlaylists _playlists;
         private PersistedAlbumlist _albums;
         private PersistedAlbumArtistlist _albumArtists;
         private Timer _timer;
         private ulong _ticks;
-        private ulong _deviceId;
+        private string _login;
+        private string _masterToken;
+        private string _deviceId;
 
         public delegate void OnLoginDelegate(int status);
 
@@ -78,15 +77,15 @@ namespace Jamcast.Plugins.GoogleMusic
             _MobileClient = new GoogleMusicMobileClient();
             _MobileClient.ErrorHandler += ErrorHandler;
             _MobileClient.Proxy = Proxy;
-            _WebClient = new GoogleMusicWebClient();
-            _WebClient.ErrorHandler += ErrorHandler;
-            _WebClient.Proxy = Proxy;
             _tracklist = new PersistedTracklist();
             _playlists = new PersistedPlaylists();
             _albums = new PersistedAlbumlist();
             _albumArtists = new PersistedAlbumArtistlist();
             _timer = new Timer(1000);
-            _timer.Elapsed += new ElapsedEventHandler(OnTimedEvent); ;
+            _timer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
+            _login = Configuration.Instance.Login;
+            _masterToken = Configuration.Instance.MasterToken;
+            _deviceId = Configuration.Instance.DeviceId;
         }
 
         public static event OnLoginDelegate OnLogin;
@@ -102,7 +101,51 @@ namespace Jamcast.Plugins.GoogleMusic
             } 
         }
 
-        public int Login(string login, string passwd, int numConnAttempts = 1)
+        public int MasterLogin(string login, string password, int numConnAttempts = 1)
+        {
+            int status = LOGIN_BUSY;
+            string deviceId = _MobileClient.MACaddress ?? "123456789abcdef0";
+            bool connected = false;
+
+            IsLoggingIn = true;
+            if (OnLogin != null) OnLogin(status);
+
+            for (int i = 0; i < numConnAttempts; i++)
+            {
+                Log.Debug(Plugin.LOG_MODULE, "Checking for internet connection", null);
+                if (connected = CheckForInternetConnection()) break;
+                System.Threading.Thread.Sleep(DELAY_CONN_ATTEMPTS);
+            }
+
+            if (connected)
+            {
+                Tuple<string,string> token = _MobileClient.MasterLogin(login, password, deviceId);
+
+                if (_MobileClient.LoginStatus)
+                {
+                    _login = token.Item1;
+                    _masterToken = token.Item2;
+                    _deviceId = deviceId;
+
+                    status = LOGIN_SUCCESS;
+                }
+                else
+                {
+                    status = LOGIN_FAILURE__WRONG_CREDENTIALS;
+                }
+            }
+            else
+            {
+                status = LOGIN_FAILURE__NO_INTERNET_CONNECTION;
+            }
+
+            IsLoggingIn = false;
+            if (OnLogin != null) OnLogin(status);
+
+            return status;
+        }
+
+        public int Login(int numConnAttempts = 1)
         {
             int status = LOGIN_BUSY;
             bool connected = false;
@@ -123,7 +166,7 @@ namespace Jamcast.Plugins.GoogleMusic
             }
             else
             {
-                _MobileClient.Login(login, passwd);
+                _MobileClient.Login(_login, _masterToken);
                 if (_MobileClient.LoginStatus)
                 {
                     status = LOGIN_SUCCESS;
@@ -144,11 +187,6 @@ namespace Jamcast.Plugins.GoogleMusic
         {
             if (_MobileClient.LoginStatus && CheckForInternetConnection())
             {
-                _WebClient.Login(_MobileClient);
-                if (_WebClient.LoginStatus)
-                    _deviceId = GetDeviceId();
-                Log.Debug(Plugin.LOG_MODULE, String.Format("Using device id {0}", _deviceId), null);
-
                 Tracklist tracklist = _MobileClient.GetAllTracks();
                 if (tracklist != null)
                 {
@@ -239,9 +277,16 @@ namespace Jamcast.Plugins.GoogleMusic
         {
             _timer.Enabled = false;
             _MobileClient.Logout();
-            _WebClient.Logout();
             _instance = new GoogleMusicAPI();
             Log.Debug(Plugin.LOG_MODULE, "Logged out of Google Music", null);
+        }
+
+        public void SaveCredentials()
+        {
+            Configuration.Instance.Login = _login;
+            Configuration.Instance.MasterToken = _masterToken;
+            Configuration.Instance.DeviceId = _deviceId;
+            Configuration.Instance.Save();
         }
 
         public bool IsLoggingIn { get; private set; }
@@ -311,20 +356,8 @@ namespace Jamcast.Plugins.GoogleMusic
 
         public string GetStreamUrl(string song_id)
         {
-            StreamUrl url;
+            StreamUrl url = _MobileClient.GetStreamUrl(song_id, _deviceId);
 
-            if (_deviceId == 0)
-            {
-                List<StreamUrl> urls = _WebClient.GetStreamUrl(song_id);
-                if (urls != null && urls.Count == 1)
-                    url = urls.First();
-                else
-                    url = null;
-            }
-            else
-            {
-                url = _MobileClient.GetStreamUrl(song_id, _deviceId);
-            }
             Log.Debug(Plugin.LOG_MODULE, String.Format("Url obtained for song id {0}: {1}", song_id, url == null ? "NULL" : url.url), null);
 
             return (url == null) ? null : url.url;
@@ -364,35 +397,6 @@ namespace Jamcast.Plugins.GoogleMusic
         public PersistedAlbumArtist GetAlbumArtist(string id)
         {
             return _albumArtists[id];
-        }
-
-        private ulong GetDeviceId()
-        {
-            ulong deviceId = 0;
-
-            Settings settings = _WebClient.GetSettings();
-            if (settings != null)
-            {
-                string id;
-
-                var devices = settings.devices.FindAll(device => device.type == "PHONE" || device.type == "IOS")
-                                      .OrderByDescending(device => device.lastUsed).ToArray();
-
-                if (devices.Length > 0)
-                {
-                    id = devices.First().id;
-
-                    if (!String.IsNullOrEmpty(id))
-                    {
-                        if (id.StartsWith("0x"))
-                            id = id.Substring(2);
-
-                        UInt64.TryParse(id, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out deviceId);
-                    }
-                }
-            }
-
-            return deviceId;
         }
 
         private bool CheckForInternetConnection()
@@ -448,7 +452,11 @@ namespace Jamcast.Plugins.GoogleMusic
 
         public int Login(string login, string passwd)
         {
-            return GoogleMusicAPI.Instance.Login(login, passwd);
+            int status = GoogleMusicAPI.Instance.MasterLogin(login, passwd);
+
+            if (status == GoogleMusicAPI.LOGIN_SUCCESS) GoogleMusicAPI.Instance.SaveCredentials();
+
+            return status;
         }
 
         public bool IsLoggingIn()
