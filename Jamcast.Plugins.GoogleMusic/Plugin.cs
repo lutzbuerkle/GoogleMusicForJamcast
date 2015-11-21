@@ -64,7 +64,7 @@ namespace Jamcast.Plugins.GoogleMusic
         public override bool Startup()
         {
             string login = Configuration.Instance.Login;
-            string masterToken = Configuration.Instance.MasterToken;
+            string masterToken = Configuration.Decrypt(Configuration.Instance.MasterToken);
 
             try
             {

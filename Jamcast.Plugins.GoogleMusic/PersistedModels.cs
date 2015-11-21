@@ -314,6 +314,7 @@ namespace Jamcast.Plugins.GoogleMusic
             get { _album = _album == null && tracks != null && tracks.Count > 0 ? tracks.First().track.album : _album; return _album; }
             set { _album = value; }
         }
+        public string albumUnique { get; set; }
         public string albumArtist
         {
             get { _albumArtist = _albumArtist == null && tracks != null && tracks.Count > 0 ? tracks.First().track.albumArtist : _albumArtist; return _albumArtist; }
@@ -371,10 +372,11 @@ namespace Jamcast.Plugins.GoogleMusic
             PersistedAlbum album = GoogleMusicAPI.Instance.GetAlbum(id);
             if (album != null)
             {
-                _album = album.album;
-                _albumArtist = album.albumArtist;
-                _albumArtistSort = album.albumArtistSort;
-                _tracks = album.tracks;
+                this.album = album.album;
+                this.albumUnique = album.albumUnique;
+                this.albumArtist = album.albumArtist;
+                this.albumArtistSort = album.albumArtistSort;
+                this.tracks = album.tracks;
             }
         }
     }
@@ -389,6 +391,31 @@ namespace Jamcast.Plugins.GoogleMusic
             List<PersistedAlbum> albums = tracks.OrderBy(track => track, new Comparer<PersistedTrack>(PersistedTrack.CompareByAlbum))
                                                 .GroupBy(track => new { track.track.album, track.track.albumArtistNorm })
                                                 .Select(groupedTracks => new PersistedAlbum { album = groupedTracks.Key.album, albumArtistSort = groupedTracks.Key.albumArtistNorm, tracks = new PersistedTracklist(groupedTracks.ToList()) }).ToList();
+
+            for (int i = 0, j; i < albums.Count - 1; i = j)
+            {
+                bool flag = false;
+
+                albums[i].albumUnique = albums[i].album;
+
+                for (j = i + 1; j < albums.Count; j++)
+                {
+                    if (albums[i].album.ToLower() == albums[j].album.ToLower())
+                    {
+                        albums[j].albumUnique = String.Format("{0} [{1}]", albums[j].album, albums[j].albumArtist);
+                        flag = true;
+                    }
+                    else
+                    {
+                        albums[j].albumUnique = albums[j].album;
+                        if (flag)
+                            albums[i].albumUnique = String.Format("{0} [{1}]", albums[i].album, albums[i].albumArtist);
+
+                        break;
+                    }
+                }
+            }
+
             this.AddRange(albums);
         }
 
@@ -453,7 +480,25 @@ namespace Jamcast.Plugins.GoogleMusic
                 if (_albums == null) Refresh();
                 return _albums;
             }
-            set { _albums = value; }
+            set
+            {
+                _albums = value;
+
+                if (_albums != null && _albums.Count > 0) {
+                    PersistedAlbum alltracks = new PersistedAlbum();
+                    alltracks.album = String.Format("All tracks by {0}", albumArtist);
+                    alltracks.albumArtist = _albums.First().albumArtist;
+                    alltracks.albumArtistSort = _albums.First().albumArtistSort;
+                    alltracks.tracks = new PersistedTracklist();
+                    foreach (PersistedAlbum album in _albums)
+                    {
+                        alltracks.tracks.AddRange(album.tracks);
+                    }
+                    alltracks.tracks.Sort();
+
+                    _albums.Add(alltracks);
+                }
+            }
         }
 
         public int GetPersistenceHash()
@@ -471,9 +516,9 @@ namespace Jamcast.Plugins.GoogleMusic
             PersistedAlbumArtist albumArtist = GoogleMusicAPI.Instance.GetAlbumArtist(id);
             if (albumArtist != null)
             {
-                _albumArtist = albumArtist.albumArtist;
-                _albumArtistSort = albumArtist.albumArtistSort;
-                _albums = albumArtist.albums;
+                this.albumArtist = albumArtist.albumArtist;
+                this.albumArtistSort = albumArtist.albumArtistSort;
+                this.albums = albumArtist.albums;
             }
         }
     }

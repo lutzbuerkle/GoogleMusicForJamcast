@@ -88,6 +88,38 @@ namespace Jamcast.Plugins.GoogleMusic
 
                 if (String.IsNullOrEmpty(albumArtUrl))
                 {
+                    return new AlbumContainer(album.albumUnique, album.albumArtist, null);
+                }
+                else
+                {
+                    return new AlbumContainer(album.albumUnique, album.albumArtist, new ImageResource(new UriLocation(albumArtUrl), MediaFormats.JPEG));
+                }
+            }
+        }
+
+    }
+
+
+    [ContainerRenderer(ContainerType.Album)]
+    public class AlbumArtistAlbumRenderer : AlbumRenderer
+    {
+
+        private PersistedAlbum album;
+
+        public override ServerObject GetMetadata()
+        {
+            album = this.ObjectData as PersistedAlbum;
+
+            if (album == null)
+            {
+                return new GenericContainer(this.ObjectData.ToString());
+            }
+            else
+            {
+                string albumArtUrl = album.albumArtUrl;
+
+                if (String.IsNullOrEmpty(albumArtUrl))
+                {
                     return new AlbumContainer(album.album, album.albumArtist, null);
                 }
                 else
@@ -96,7 +128,5 @@ namespace Jamcast.Plugins.GoogleMusic
                 }
             }
         }
-
     }
-
 }

@@ -84,7 +84,7 @@ namespace Jamcast.Plugins.GoogleMusic
             _timer = new Timer(1000);
             _timer.Elapsed += new ElapsedEventHandler(OnTimedEvent);
             _login = Configuration.Instance.Login;
-            _masterToken = Configuration.Instance.MasterToken;
+            _masterToken = Configuration.Decrypt(Configuration.Instance.MasterToken);
             _deviceId = Configuration.Instance.DeviceId;
         }
 
@@ -198,20 +198,6 @@ namespace Jamcast.Plugins.GoogleMusic
                     Log.Debug(Plugin.LOG_MODULE, String.Format("{0} albums in database", _albums.Count), null);
 
                     _albumArtists = new PersistedAlbumArtistlist(_albums);
-                    foreach (PersistedAlbumArtist albumArtist in _albumArtists)
-                    {
-                        PersistedAlbum alltracks = new PersistedAlbum();
-                        alltracks.album = String.Format("All tracks by {0}", albumArtist);
-                        alltracks.albumArtist = albumArtist.albumArtist;
-                        alltracks.albumArtistSort = albumArtist.albumArtistSort;
-                        alltracks.tracks = new PersistedTracklist();
-                        foreach (PersistedAlbum album in albumArtist.albums)
-                        {
-                            alltracks.tracks.AddRange(album.tracks);
-                        }
-                        alltracks.tracks.Sort();
-                        albumArtist.albums.Add(alltracks);
-                    }
                     Log.Debug(Plugin.LOG_MODULE, String.Format("{0} album artists in database", _albumArtists.Count), null);
                 }
                 else
@@ -252,20 +238,6 @@ namespace Jamcast.Plugins.GoogleMusic
                         _albums = new PersistedAlbumlist(_tracklist);
 
                         _albumArtists = new PersistedAlbumArtistlist(_albums);
-                        foreach (PersistedAlbumArtist albumArtist in _albumArtists)
-                        {
-                            PersistedAlbum alltracks = new PersistedAlbum();
-                            alltracks.album = String.Format("All tracks by {0}", albumArtist);
-                            alltracks.albumArtist = albumArtist.albumArtist;
-                            alltracks.albumArtistSort = albumArtist.albumArtistSort;
-                            alltracks.tracks = new PersistedTracklist();
-                            foreach (PersistedAlbum album in albumArtist.albums)
-                            {
-                                alltracks.tracks.AddRange(album.tracks);
-                            }
-                            alltracks.tracks.Sort();
-                            albumArtist.albums.Add(alltracks);
-                        }
                     }
 
                     UpdatePlaylists(ref _playlists);
@@ -284,7 +256,7 @@ namespace Jamcast.Plugins.GoogleMusic
         public void SaveCredentials()
         {
             Configuration.Instance.Login = _login;
-            Configuration.Instance.MasterToken = _masterToken;
+            Configuration.Instance.MasterToken = Configuration.Encrypt(_masterToken);
             Configuration.Instance.DeviceId = _deviceId;
             Configuration.Instance.Save();
         }

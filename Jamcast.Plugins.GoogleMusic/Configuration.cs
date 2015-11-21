@@ -47,8 +47,8 @@ namespace Jamcast.Plugins.GoogleMusic
         public string Login { get; set; }
         public string MasterToken
         {
-            get { return Decrypt(_masterToken); }
-            set { _masterToken = Encrypt(value); }
+            get { return _masterToken; }
+            set { _masterToken = value; }
         }
         public string DeviceId { get; set; }
 
@@ -72,7 +72,7 @@ namespace Jamcast.Plugins.GoogleMusic
             PluginDataProvider.XmlSerialize<Configuration>(CONFIGURATION_KEY, _instance);
         }
 
-        private string Encrypt(string plainText)
+        public static string Encrypt(string plainText)
         {
             if (String.IsNullOrEmpty(plainText))
                 return null;
@@ -83,7 +83,7 @@ namespace Jamcast.Plugins.GoogleMusic
             return Convert.ToBase64String(encrypted);
         }
 
-        private string Decrypt(string cipher)
+        public static string Decrypt(string cipher)
         {
             if (String.IsNullOrEmpty(cipher))
                 return null;

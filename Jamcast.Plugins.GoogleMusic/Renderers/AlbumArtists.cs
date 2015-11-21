@@ -71,7 +71,7 @@ namespace Jamcast.Plugins.GoogleMusic
 
         public override ObjectRenderInfo GetChildAt(int index)
         {
-            return new ObjectRenderInfo(typeof(AlbumRenderer), albumArtist.albums[index]);
+            return new ObjectRenderInfo(typeof(AlbumArtistAlbumRenderer), albumArtist.albums[index]);
         }
 
         public override ServerObject GetMetadata()
