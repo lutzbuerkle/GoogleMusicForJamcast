@@ -1,0 +1,3 @@
+[submodule "GoogleMusic"]
+	path = GoogleMusic
+	url = git@github.com:lutzbuerkle/GoogleMusic.NET.git
