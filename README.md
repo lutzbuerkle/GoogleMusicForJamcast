@@ -1,10 +1,10 @@
 Google Music for Jamcast
 ========================
 
-This project adds Google Music browse and playback capabilities to Jamcast, a DLNA media server for Windows.
+This project adds Google Music browse and playback capabilities to [Jamcast](http://getjamcast.com), a DLNA media server for Windows.
 
 ##### Requirements
-* Jamcast Server (download at getjamcast.com)
+* Jamcast Server (download at [getjamcast.com](http://getjamcast.com))
 * a Google Music account
 
 ##### Build Dependencies
@@ -13,5 +13,5 @@ This project adds Google Music browse and playback capabilities to Jamcast, a DL
 
 ------------
 
-Copyright 2017, Lutz Bürkle
+Copyright 2017, Lutz BÃ¼rkle
 Licensed under the 3-clause BSD. See LICENSE.
